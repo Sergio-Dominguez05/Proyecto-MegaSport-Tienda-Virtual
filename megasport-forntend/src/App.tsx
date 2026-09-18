@@ -1,18 +1,38 @@
-import { useState } from 'react'
-import './App.css'
+import { Route, Routes } from 'react-router-dom'
+import Navbar from './components/Navbar'
+import Home from './pages/Home'
+import Category from './pages/Category'
+import NotFound from './pages/NotFound'
+import Cart from './pages/Cart'
+
 
 function App() {
   return(
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-      <div className="text-center">
-      <h1 className="text-5xl font-bold">
-        Tienda MegaSport Virtual.
-      </h1>
-      <p className="mt-4 text-lg text-slate-300">
-        Tu tienda virtual de confianza
-      </p>
-      </div>
-    </main>
+    <>
+    <Navbar />
+    <Routes>
+
+      <Route 
+        path="/"
+        element={<Home />}
+      />
+      <Route 
+        path="/categoria/:category"
+        element={<Category />} 
+      />
+
+      <Route 
+        path="/carrito"
+        element={<Cart />}
+      />
+
+      <Route 
+        path="*"
+        element={<NotFound />}
+      />
+
+    </Routes>
+    </>
   )
 }
 

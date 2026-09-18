@@ -30,7 +30,7 @@ function Navbar(){
                     </NavLink>
 
                     <NavLink
-                        to="/categotia/mujer"
+                        to="/categoria/mujer"
                         className="text-sm font-medium text-gray-700 hover:text-black"
                     >
                         Mujer
