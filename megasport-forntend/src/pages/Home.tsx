@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import CateogryCard from "../components/CategoryCard"
 import ProductCard from "../components/ProductCard"
+import Category from "./Category"
 
 function Home(){
     const categories = [
@@ -35,9 +36,9 @@ function Home(){
             id: 1,
             name: 'Camiseta Running Pro',
             category: 'Hombre',
-            price: '249.99',
+            price: 249.99,
             image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=700&q=80',
-            avilable: true,
+            available: true,
         },
         {
             id: 2,
@@ -50,7 +51,7 @@ function Home(){
 
         {
             id: 3,
-            name: 'Tenis Performance X1',
+            name: 'Tenis Performance xl',
             category: 'Zapatos',
             price: 599.99,
             image:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80',
@@ -168,6 +169,91 @@ function Home(){
 
             </section>
 
+            <section
+                id="categorias"
+                className="mx-auto max-w-7xl px-6 py-20">
+            
+                <div className="mb-10">
+                    <p className="text-sm font-semibold uppercase tracking-widest text-gray-500">
+                        Explorar
+                    </p>
+                    <h2 className="mt-2 text-4xl font-bold text-slate-900">
+                        Ver las categorias
+                    </h2>
+                </div>
+                
+
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    {categories.map((category) => (
+                        <CateogryCard
+                            key={category.title}
+                            title={category.title}
+                            subtitle={category.subtitle}
+                            image={category.image}
+                            link={category.link}
+                        />
+                    ))}
+                </div>
+            </section>
+
+            <section  className="bg-gray-50">
+                <div className="mx-auto max-w-7xl px-6 py-20">
+                    <div className="mb-10 flex items-end justify-between">
+                        <div>
+                            <p className="text-sm font-semibold uppercase tracking-widest text-gray-500">
+                                Recomendados
+                            </p>
+                            <h2 className="mt-2 text-4xl font-bold text-slate-900">
+                                Productos Destacados
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        {featuredProducts.map((product) => (
+                            <ProductCard
+                                key={product.id}
+                                id={product.id}
+                                name={product.name}
+                                category={product.category}
+                                price={product.price}
+                                image={product.image}
+                                available={product.available}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            <section className="mx-auto max-w-7xl px-6 py-20">
+
+                <div className="overflow-hidden rounded-3xl bg-slate-900 px-8 py-16 text-white md:px-16">
+
+                    <div className="max-w-2xl">
+
+                        <p className="text-sm font-semibold uppercase tracking-widest text-gray-400">
+                        MegaSport
+                        </p>
+
+                        <h2 className="mt-4 text-4xl font-bold md:text-5xl">
+                        Todo lo que necesitas para tu próximo entrenamiento.
+                        </h2>
+
+                        <p className="mt-5 text-lg text-gray-300">
+                        Encuentra ropa deportiva, calzado y accesorios para hombre,
+                        mujer y niños.
+                        </p>
+
+                        <Link
+                        to="/categoria/hombre"
+                        className="mt-8 inline-block rounded-xl bg-white px-7 py-3 font-semibold text-slate-950 transition hover:bg-gray-200"
+                        >
+                        Explorar productos
+                        </Link>
+
+                    </div>
+                </div>
+            </section>
         </main>
     )
 }

@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 function Footer (){
     return(
         <footer className="mt-20 bg-slate-950 text-gray-300">
-            <div className="mx-auto grid max-w-7x1 gap-10 px-6 py-14 md:grid-cols-4">
+            <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 md:grid-cols-4">
                 <div className="md:col-span-2">
-                    <h2 className="text-2x1 font-bold tracking-wide text-white">
+                    <h2 className="text-2xl font-bold tracking-wide text-white">
                         MEGASPORT
                     </h2>
 

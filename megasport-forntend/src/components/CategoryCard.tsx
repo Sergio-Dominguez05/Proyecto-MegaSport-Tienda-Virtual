@@ -16,7 +16,7 @@ function CateogryCard ({
     return(
         <Link
             to={link}
-            className="group relative h-96 overflow-hidden rounded-2x1">
+            className="group relative h-96 overflow-hidden rounded-2xl">
             <img
                 src={image}
                 alt={title}
@@ -28,7 +28,7 @@ function CateogryCard ({
                     {subtitle}
                 </p>
 
-                <h3 className="mt-1 text-3x1 font-bold">
+                <h3 className="mt-1 text-3xl font-bold">
                     {title}
                 </h3>
 

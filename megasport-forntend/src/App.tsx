@@ -4,35 +4,47 @@ import Home from './pages/Home'
 import Category from './pages/Category'
 import NotFound from './pages/NotFound'
 import Cart from './pages/Cart'
+import Footer from './components/Footer'
+import ProductDetail from './pages/ProductDetail'
 
 
 function App() {
   return(
-    <>
-    <Navbar />
-    <Routes>
+    <div className="flex min-h-screen flex-col">
 
-      <Route 
-        path="/"
-        element={<Home />}
-      />
-      <Route 
-        path="/categoria/:category"
-        element={<Category />} 
-      />
+      <Navbar />
+        <div className='flex-1'>
+          <Routes>
 
-      <Route 
-        path="/carrito"
-        element={<Cart />}
-      />
+            <Route 
+              path="/"
+              element={<Home />}
+            />
+            <Route 
+              path="/categoria/:category"
+              element={<Category />} 
+            />
 
-      <Route 
-        path="*"
-        element={<NotFound />}
-      />
+            <Route 
+              path="/carrito"
+              element={<Cart />}
+            />
 
-    </Routes>
-    </>
+            <Route
+              path="/producto/:id"
+              element={<ProductDetail />} 
+            />
+
+            <Route 
+              path="*"
+              element={<NotFound />}
+            />
+
+          </Routes>
+        </div>
+
+        <Footer />
+    </div>
   )
 }
 
