@@ -1,10 +1,12 @@
 import { NavLink } from "react-router-dom";
+import { useCart } from "../context/CartContext";
 
 function Navbar(){
+
+    const {totalItems} = useCart()
     return(
         <header className="border-b border-gray-200 bg-white">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-                {/* logo */}
                 <NavLink
                     to="/"
                     className="text-2xl font-bold tracking-wide text-slate-900"
@@ -12,7 +14,6 @@ function Navbar(){
                     MEGASPORT
                 </NavLink>
 
-                {/*Navegacion*/}
 
                 <nav className="flex items-center gap-8">
                     <NavLink
@@ -54,7 +55,7 @@ function Navbar(){
                         to="/carrito"
                         className="text-sm font-medium text-gray-700 hover:text-black"
                     >
-                        Carrito
+                        Carrito ({totalItems})
                     </NavLink>
 
                 </nav>

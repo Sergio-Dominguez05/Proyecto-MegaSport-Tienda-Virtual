@@ -2,6 +2,7 @@ import { Link } from "react-router-dom"
 import CateogryCard from "../components/CategoryCard"
 import ProductCard from "../components/ProductCard"
 import Category from "./Category"
+import { products } from "../data/products"
 
 function Home(){
     const categories = [
@@ -31,42 +32,7 @@ function Home(){
         }    
     ]
 
-    const featuredProducts = [
-        {
-            id: 1,
-            name: 'Camiseta Running Pro',
-            category: 'Hombre',
-            price: 249.99,
-            image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=700&q=80',
-            available: true,
-        },
-        {
-            id: 2,
-            name: 'Leggings Training',
-            category: 'Mujer',
-            price: 299.99,
-            image:'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=700&q=80',
-            available: true,
-        },
-
-        {
-            id: 3,
-            name: 'Tenis Performance xl',
-            category: 'Zapatos',
-            price: 599.99,
-            image:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80',
-            available: true,
-        },
-
-        {
-            id: 4,
-            name: 'Sudadera Sport',
-            category: 'Hombre',
-            price: 349.99,
-            image:'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=700&q=80',
-            available: false,
-        },
-    ]
+    const featuredProducts = products.filter((product) => product.activo).slice(0, 4)
     return(
         <main>
             <section className="bg-slate-950 text-white">
@@ -210,17 +176,22 @@ function Home(){
                     </div>
 
                     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                        {featuredProducts.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                id={product.id}
-                                name={product.name}
-                                category={product.category}
-                                price={product.price}
-                                image={product.image}
-                                available={product.available}
-                            />
-                        ))}
+                        {featuredProducts.map((product) => {
+
+                            const available = product.variantes.some((variant) => variant.activo && variant.stock > 0)
+
+                            return(
+                                <ProductCard
+                                    key={product.id}
+                                    id={product.id}
+                                    name={product.nombre}
+                                    category={product.categoria}
+                                    price={product.precio}
+                                    image={product.urlImg}
+                                    available={available}
+                                />
+                            )
+                        })}
                     </div>
                 </div>
             </section>

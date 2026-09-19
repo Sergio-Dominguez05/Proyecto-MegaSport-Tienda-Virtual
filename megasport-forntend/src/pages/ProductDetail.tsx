@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-
 import { products } from '../data/products'
+import { useCart } from '../context/CartContext'
 
 {/*La version de prueba de esta pagina fue hecha en su totalidad con IA para fines de simulacion ya que todavia no cree el carrito
     La implementacion funcional con el BackEnd y Posteriormente la base de datos y con el carrito creado se va a hacer despues
@@ -11,6 +11,8 @@ import { products } from '../data/products'
 function ProductDetail() {
 
   const { id } = useParams()
+
+  const { addItem } = useCart()
 
   const product = products.find(
     (product) =>
@@ -126,11 +128,11 @@ function ProductDetail() {
       return
     }
 
-    console.log({
-      producto: product.id,
-      variante: selectedVariant.idVariante,
-      cantidad: quantity,
-    })
+    addItem(
+      selectedVariant.idVariante,
+      quantity,
+      selectedVariant.stock
+    )
 
     alert(
       `${product.nombre} - ${selectedVariant.color} / ${selectedVariant.talla} seleccionado`
