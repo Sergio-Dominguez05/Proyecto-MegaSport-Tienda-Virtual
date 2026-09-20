@@ -1,6 +1,10 @@
 import { couriers } from "../data/couriers";
 import type { Courier } from "../types/courier";
 import type { CourierQuote } from "../types/courier";
+import type { ShipmentRequest } from "../data/couriers";
+import type { ShipmentCreationResult } from "../data/couriers";
+import type { ShipmentStatusResult } from "../data/couriers";
+import type { ShippingStatus } from "../data/couriers";
 
 type MockCourierRule = {
     baseCost: number
@@ -114,4 +118,85 @@ export async function consultarTodosLosCouriers(codigoDestino: string): Promise<
     const results = await Promise.all(activeCouriers.map((courier) => consultarCourier(courier, codigoDestino)))
 
     return results
+}
+
+const MOCK_SHIPMENTS_KEY = 'megasport-mock-shipments'
+
+type MockShipment = {
+    courierId: string
+    numeroEnvio: string
+    creadoEn: number
+}
+
+function getMockShipments() : MockShipment[]{
+    const saved = localStorage.getItem(MOCK_SHIPMENTS_KEY)
+
+    if(!saved){
+        return[]
+    }
+
+    try{
+        return JSON.parse(saved)
+    } catch {
+        return[]
+    }
+}
+
+function saveMockShipments( shipments: MockShipment[]){
+    localStorage.setItem(MOCK_SHIPMENTS_KEY, JSON.stringify(shipments))
+}
+
+export async function solictarEnvio(courierId: string, request: ShipmentRequest) : Promise<ShipmentCreationResult>{
+    await wait(700 + Math.random() * 800)
+
+    const courier = couriers.find((courier) => courier.identificador === courierId && courier.activo)
+
+    if (!courier){
+        throw new Error('El courier que se selecciono no esta disponible ahorita.')
+    }
+
+    if(request.codigoDestino.trim().length !== 5){
+        throw new Error('El codigo del destino no es valido, tiene que tener 5 caracteres')
+    }
+
+    const numeroEnvio = `ENV-${courierId.replace('COUR-', '')}-${Date.now().toString().slice(-8)}`
+
+    const shipment: MockShipment = {courierId, numeroEnvio, creadoEn: Date.now()}
+
+    const currentShipments = getMockShipments()
+
+    saveMockShipments([
+        ...currentShipments,
+        shipment
+    ])
+
+    return{
+        courierId,
+        numeroEnvio,
+        estadoEnvio: 1
+    }
+}
+
+export async function consultarEstadoEnvio(courierId: string, numeroEnvio: string): Promise<ShipmentStatusResult>{
+    await wait(400 + Math.random() * 500)
+
+    const shipments = getMockShipments()
+
+    const shipment = shipments.find((shipment) => shipment.courierId === courierId && shipment.numeroEnvio === numeroEnvio)
+
+    if(!shipment){
+        throw new Error('No se pudo localizar el envio')
+    }
+
+    {/* Esta de aqui es la simulacion local, cada 10 segundos se cambia el estado, en el backend despues hacemos la llamada como se debe */}
+
+    const elapsedSeconds = Math.floor((Date.now() - shipment.creadoEn) / 1000)
+
+    const calculatedStatus = Math.min(5, 1 + Math.floor(elapsedSeconds / 10) as ShippingStatus)
+
+    return{
+        courierId,
+        numeroEnvio,
+        estadoEnvio: calculatedStatus
+    }
 }
