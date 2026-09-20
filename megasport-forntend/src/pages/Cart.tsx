@@ -44,6 +44,25 @@ function Cart (){
         )
     }, 0)
 
+    const handleContinuePurchase = () => {
+        if (detailedItems.length === 0){
+            return
+        }
+
+        const detalles = detailedItems.map(({
+            item,
+            product,
+            variant
+        }) => ({
+            idVariante: variant.idVariante,
+            cantidad: item.cantidad,
+            precioPorUnidad: product.precio
+        }))
+
+        startOrder({ subtotalAntesDelEnvio: subtotal, detalles})
+        navigate('/checkout')
+    }
+
     if (items.length === 0){
         return(
             <main className="mx-auto max-w-7xl px-6 py-16">
@@ -297,6 +316,7 @@ function Cart (){
 
                             <button
                             type="button"
+                            onClick={handleContinuePurchase}
                             className="mt-7 w-full rounded-xl bg-slate-950 px-6 py-4 font-semibold text-white transition hover:bg-slate-700"
                             >
                             Continuar compra

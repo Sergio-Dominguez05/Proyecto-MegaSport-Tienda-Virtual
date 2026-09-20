@@ -6,6 +6,8 @@ import NotFound from './pages/NotFound'
 import Cart from './pages/Cart'
 import Footer from './components/Footer'
 import ProductDetail from './pages/ProductDetail'
+import Checkout from './pages/Checkout'
+import CourierSelection from './pages/CourierSelection'
 
 
 function App() {
@@ -33,6 +35,14 @@ function App() {
             <Route
               path="/producto/:id"
               element={<ProductDetail />} 
+            />
+            <Route 
+              path="/checkout"
+              element={<Checkout />}
+            />
+            <Route 
+              path="/checkout/courier"
+              element={<CourierSelection />}
             />
 
             <Route 

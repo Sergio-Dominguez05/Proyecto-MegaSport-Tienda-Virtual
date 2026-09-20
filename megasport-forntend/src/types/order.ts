@@ -10,5 +10,9 @@ export type OrderDraft = {
     subtotalAntesDeEnvio: number
     direccionDeEnvio: string
     codigoDelDestino: string
+    idCourier: string | null
+    costoEnvio: number
+    total: number
     detalles: OrderDetailDraft[]
+
 }

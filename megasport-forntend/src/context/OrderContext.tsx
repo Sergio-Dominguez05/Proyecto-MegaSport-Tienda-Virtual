@@ -16,6 +16,11 @@ type ShippingData = {
     codigoDelDestino: string
 }
 
+type CourierSelectionData = {
+    idCourier: string
+    costoEnvio: number
+}
+
 type OrderContextType ={
     orderDraft: OrderDraft | null
 
@@ -25,6 +30,10 @@ type OrderContextType ={
 
     updateShippingData: (
         data: ShippingData
+    ) => void
+
+    selectCourier: (
+        data: CourierSelectionData
     ) => void
 
     clearOrderDraft: (
@@ -68,6 +77,9 @@ function OrderProvider ({children} : OrderProviderProps){
             subtotalAntesDeEnvio: data.subtotalAntesDelEnvio,
             direccionDeEnvio: '',
             codigoDelDestino: '',
+            idCourier: null,
+            costoEnvio: 0,
+            total: data.subtotalAntesDelEnvio,
             detalles: data.detalles
         }
         setOrderDraft(newOrder)
@@ -81,7 +93,25 @@ function OrderProvider ({children} : OrderProviderProps){
             return{
                 ...currentOrder,
                 direccionDeEnvio: data.direccionDeEnvio,
-                codigoDelDestino: data.codigoDelDestino
+                codigoDelDestino: data.codigoDelDestino,
+                idCourier: null,
+                costoEnvio: 0,
+                total: currentOrder.subtotalAntesDeEnvio
+            }
+        })
+    }
+
+    const selectCourier = (data: CourierSelectionData) => {
+        setOrderDraft((currentOrder) => {
+            if (!currentOrder){
+                return null
+            }
+
+            return{
+                ...currentOrder,
+                idCourier: data.idCourier,
+                costoEnvio: data.costoEnvio,
+                total: currentOrder.subtotalAntesDeEnvio + data.costoEnvio
             }
         })
     }
@@ -96,6 +126,7 @@ function OrderProvider ({children} : OrderProviderProps){
                 orderDraft,
                 startOrder,
                 updateShippingData,
+                selectCourier,
                 clearOrderDraft
             }}>
 
