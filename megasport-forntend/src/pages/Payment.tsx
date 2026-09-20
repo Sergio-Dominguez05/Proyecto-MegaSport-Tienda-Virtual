@@ -5,35 +5,44 @@ import { identificarTarjetaPorNumero } from "../services/cardService";
 import { autorizarPago } from "../services/cardService";
 import { couriers } from "../data/couriers";
 import type { PaymentAuthorizationResult } from "../types/card";
+import { useNavigate } from "react-router-dom";
+import { useCart } from "../context/CartContext";
+import { solictarEnvio } from "../services/courierService";
 
 function Payment (){
-    const {orderDraft, registerPaymentResult} = useOrder()
+    const navigate = useNavigate()
+    const {clearCart} = useCart()
+    const {orderDraft, registerPaymentResult, finalizeOrder} = useOrder()
     const[ numeroTarjeta, setNumeroTarjeta] = useState('')
     const[titular, setTitular] = useState('')
     const[vencimiento, setVencimiento] = useState('')
     const [seguridad, setSeguridad] = useState('')
     const [processing, setProcessing] = useState(false)
     const [result, setResult] = useState<PaymentAuthorizationResult | null>(null)
+    const [finalizing, setFinalizing] = useState(false)
+    const [finalizeError, setFinalizeError] = useState('')
 
     if(!orderDraft){
-        <main className="mx-auto max-w-7xl px-6 py-16">
+        return(
+            <main className="mx-auto max-w-7xl px-6 py-16">
 
-            <div className="rounded-2xl border border-gray-200 p-14 text-center">
+                <div className="rounded-2xl border border-gray-200 p-14 text-center">
 
-                <h1 className="text-3xl font-bold text-slate-900">
-                    No hay compras en proceso
-                </h1>
+                    <h1 className="text-3xl font-bold text-slate-900">
+                        No hay compras en proceso
+                    </h1>
 
-                <Link
-                    to="/carrito"
-                    className="mt-8 inline-block rounded-xl bg-slate-950 px-7 py-3 font-semibold text-white"
-                >
-                    Ir al carrito
-                </Link>
+                    <Link
+                        to="/carrito"
+                        className="mt-8 inline-block rounded-xl bg-slate-950 px-7 py-3 font-semibold text-white"
+                    >
+                        Ir al carrito
+                    </Link>
 
-            </div>
+                </div>
 
-        </main>
+            </main>
+        )
     }
 
     if(!orderDraft?.idCourier){
@@ -107,7 +116,7 @@ function Payment (){
     }
 
     const handleSubmit = async () => {
-        if(!formIsValid && processing || !provider){
+        if(!formIsValid || processing || !provider){
             return
         }
 
@@ -137,6 +146,44 @@ function Payment (){
         }
     }
     const paymentApproved = orderDraft.estadoDePagado === 'APROBADO'
+
+    const handleFinalizeOrder = async () => {
+        if (!orderDraft || orderDraft.estadoDePagado !== 'APROBADO' || !orderDraft.idCourier){
+            return
+        }
+
+        try {
+            setFinalizing(true)
+            setFinalizeError('')
+
+            const shipment = await solictarEnvio(orderDraft.idCourier, {
+                idOrdenTemporal: orderDraft.idTemporal,
+                codigoDestino: orderDraft.codigoDelDestino,
+                direccionEnvio: orderDraft.direccionDeEnvio
+            })
+
+            const finalizedOrder = finalizeOrder({
+                numeroEnvio: shipment.numeroEnvio,
+                estadoEnvio: shipment.estadoEnvio
+            })
+
+            if(!finalizedOrder) {
+                throw new Error ('No se pudo finalizar correctamente la compra')
+            }
+            clearCart()
+            navigate(`/orden/${finalizedOrder.id}`)
+        } catch (error){
+            if(error instanceof Error){
+                setFinalizeError(error.message)
+            } else {
+                setFinalizeError('No se pudo completar la compra')
+            }
+        } finally {
+            setFinalizing(false)
+        }
+    }
+
+
     
     return(
         <main className="mx-auto max-w-7xl px-6 py-16">
@@ -366,7 +413,31 @@ function Payment (){
                         ? 'Pago autorizado' : `Pagar Q${orderDraft.total.toFixed(2)}`}
 
                     </button>
+                    
+                    {paymentApproved && (
+                        <button
+                            type="button"
+                            disabled={finalizing}
+                            onClick={handleFinalizeOrder}
+                            className="mt-4 w-full rounded-xl bg-green-700 px-6 py-4 font-semibold text-white transition hover:bg-green-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+                        >
 
+                            {finalizing ? 'Solicitando envío...' : 'Finalizar compra y solicitar envío'}
+
+                        </button>
+                    )}
+
+                    {finalizeError && (
+
+                        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+
+                            <p className="text-sm font-semibold text-red-700">
+                                {finalizeError}
+                            </p>
+
+                        </div>
+
+                    )}
 
                     <p className="mt-4 text-center text-xs text-gray-400">
                         Los datos de la tarjeta no se almacenan en MegaSport por lo que es 100% seguro :D

@@ -1,0 +1,1254 @@
+Esta de aqui es la documentacion completa de todo lo que esta implementado hasta ahora en el ForntEnd le pedi a la IA que analizara todo
+el proyecto y lo que llevaba hecho hasta ahora para que explicara funcionamiento general del proyecto y funcionamiento especifico
+de cada uno de los archivos y sus funciones internas incluyendo que recibe, como funciona y que entrega. Si se quiere buscar un Detalle
+en especifico de alguna funcion usar ctrl + F para encontrar su funcionamiento.
+
+Este FrontEnd usa React + TypeScript + Vite + Tailwind CSS
+
+MEGASPORT - DOCUMENTACION DEL FRONTEND
+======================================
+Fecha de esta documentacion: 2026-09-20
+Proyecto: MegaSport - Tienda virtual de ropa y calzado deportivo
+Fase documentada: Frontend funcional con datos y servicios simulados
+
+
+1. OBJETIVO GENERAL DEL FRONTEND
+--------------------------------
+MegaSport es la interfaz web de una tienda virtual de ropa deportiva. En esta fase el frontend ya permite recorrer practicamente todo el flujo de compra, pero todavia no existe una base de datos real ni un backend Node.js conectado.
+
+Actualmente la aplicacion puede:
+
+- Mostrar una pagina principal con categorias y productos destacados.
+- Navegar por categorias: Hombre, Mujer, Ninos y Zapatos.
+- Mostrar el detalle de un producto.
+- Permitir seleccionar una variante especifica del producto segun talla y color.
+- Respetar el stock disponible de cada variante.
+- Agregar variantes al carrito y modificar sus cantidades.
+- Mantener el carrito aunque se recargue el navegador mediante localStorage.
+- Crear un borrador de orden a partir del carrito.
+- Capturar direccion y codigo de destino.
+- Simular consultas a tres couriers y obtener cobertura y costo de envio.
+- Permitir seleccionar un courier y calcular el total con envio.
+- Detectar el proveedor de una tarjeta por el primer digito.
+- Simular una autorizacion de pago APROBADA o DENEGADA.
+- Formalizar una orden cuando el pago es aprobado.
+- Simular la solicitud de un envio al courier elegido.
+- Obtener un numero de envio y consultar su estado.
+- Mostrar una pantalla final de confirmacion y seguimiento de la orden.
+
+Esta implementacion fue preparada de forma que la mayor parte de la interfaz pueda conservarse cuando se agreguen el backend y la base de datos. Los archivos dentro de src/data y src/services contienen buena parte de la simulacion que posteriormente debera reemplazarse por llamadas HTTP al backend.
+
+
+2. TECNOLOGIAS Y VERSIONES PRINCIPALES
+---------------------------------------
+El proyecto utiliza:
+
+- Node.js usado durante el desarrollo: v24.14.0
+- npm usado durante el desarrollo: 11.9.0
+- React: 19.2.8
+- React DOM: 19.2.8
+- React Router DOM: 7.18.4
+- TypeScript: ~6.0.2
+- Vite: 8.3.0
+- Tailwind CSS: 4.3.3
+- ESLint: 10.10.0
+
+Comandos principales definidos en package.json:
+
+npm run dev
+  Inicia Vite en modo desarrollo con hot reload.
+
+npm run build
+  Ejecuta TypeScript y luego genera el build de produccion con Vite.
+
+npm run lint
+  Ejecuta ESLint sobre el proyecto.
+
+npm run preview
+  Permite previsualizar localmente el build de produccion.
+
+
+3. ESTRUCTURA GENERAL DEL PROYECTO
+----------------------------------
+Archivos y carpetas principales:
+
+megasport-forntend/
+|
+|-- DOCUMENTACION_FRONTEND.txt
+|-- package.json
+|-- package-lock.json
+|-- vite.config.ts
+|-- eslint.config.js
+|-- tsconfig.json
+|-- tsconfig.app.json
+|-- tsconfig.node.json
+|-- index.html
+|-- public/
+|-- src/
+    |-- App.tsx
+    |-- main.tsx
+    |-- index.css
+    |-- components/
+    |-- context/
+    |-- data/
+    |-- pages/
+    |-- services/
+    |-- types/
+
+
+4. FLUJO GENERAL DE LA APLICACION
+---------------------------------
+El flujo de compra actual es aproximadamente:
+
+Inicio
+  -> Categoria
+  -> Detalle del producto
+  -> Seleccion de variante (color/talla)
+  -> Carrito
+  -> Crear borrador de orden
+  -> Datos de entrega
+  -> Consulta y seleccion de Courier
+  -> Pago
+  -> Autorizacion de tarjeta
+  -> Solicitud de envio
+  -> Formalizacion de orden
+  -> Confirmacion y seguimiento
+
+Rutas implementadas:
+
+/                         Pagina principal
+/categoria/:category      Catalogo filtrado por categoria
+/producto/:id             Detalle de un producto
+/carrito                  Carrito de compras
+/checkout                 Captura de direccion y destino
+/checkout/courier         Consulta y seleccion de courier
+/checkout/pago            Pago y autorizacion
+/orden/:id                Confirmacion y seguimiento de una orden
+*                         Pagina 404 para rutas inexistentes
+
+
+5. ARCHIVOS DE RAIZ Y CONFIGURACION
+-----------------------------------
+
+package.json
+------------
+Define el nombre del proyecto, scripts de npm, dependencias y dependencias de desarrollo.
+No contiene logica de negocio.
+
+vite.config.ts
+--------------
+Configura Vite.
+Activa dos plugins principales:
+- React mediante @vitejs/plugin-react.
+- Tailwind CSS mediante @tailwindcss/vite.
+
+eslint.config.js
+----------------
+Configura ESLint para archivos TypeScript y TSX.
+Incluye reglas recomendadas de JavaScript, TypeScript, React Hooks y React Refresh.
+Ignora la carpeta dist.
+
+tsconfig.json / tsconfig.app.json / tsconfig.node.json
+-----------------------------------------------------
+Configuran TypeScript.
+La aplicacion usa configuracion estricta suficiente para detectar variables sin usar, parametros sin usar y otros errores antes de construir el proyecto.
+
+index.html
+----------
+Documento HTML base de Vite.
+Contiene el elemento:
+
+<div id="root"></div>
+
+donde React monta toda la aplicacion desde src/main.tsx.
+
+
+6. src/main.tsx
+---------------
+Es el punto de entrada de React.
+
+Funciones principales:
+- Obtiene el elemento HTML con id "root".
+- Crea la raiz de React con createRoot().
+- Envuelve la aplicacion con BrowserRouter para habilitar React Router.
+- Envuelve App con CartProvider para hacer accesible el carrito globalmente.
+- Envuelve App con OrderProvider para hacer accesible el estado de checkout y orden globalmente.
+
+Estructura conceptual:
+
+BrowserRouter
+  -> CartProvider
+      -> OrderProvider
+          -> App
+
+No recibe parametros externos ni retorna datos a otros archivos; simplemente inicializa la aplicacion.
+
+
+7. src/App.tsx
+--------------
+Es el componente raiz visual y de rutas.
+
+Responsabilidades:
+- Muestra Navbar en la parte superior.
+- Muestra la pagina que corresponda segun la URL usando <Routes> y <Route>.
+- Muestra Footer al final.
+- Mantiene un layout de altura minima de pantalla.
+
+Entradas:
+- La URL actual, gestionada internamente por React Router.
+
+Salida:
+- Renderiza el componente de pagina correspondiente.
+
+
+8. CARPETA src/components
+-------------------------
+Contiene piezas visuales reutilizables.
+
+8.1 Navbar.tsx
+--------------
+Barra de navegacion principal.
+
+Usa:
+- NavLink de React Router.
+- useCart() para obtener totalItems.
+
+Muestra enlaces a:
+- Inicio
+- Hombre
+- Mujer
+- Ninos
+- Zapatos
+- Carrito
+
+El texto del carrito incluye la cantidad total de unidades, por ejemplo:
+Carrito (3)
+
+Entrada indirecta:
+- totalItems desde CartContext.
+
+Salida:
+- Header de navegacion.
+
+
+8.2 Footer.tsx
+--------------
+Pie de pagina global.
+
+Muestra:
+- Nombre MegaSport.
+- Descripcion breve.
+- Enlaces a categorias.
+- Enlaces a inicio y carrito.
+- Texto de proyecto.
+
+No tiene estado ni procesamiento de datos.
+
+
+8.3 CategoryCard.tsx
+--------------------
+Tarjeta grande para representar una categoria en Home.
+
+Props recibidas:
+- title: nombre de categoria.
+- subtitle: descripcion corta.
+- image: URL de imagen.
+- link: ruta a la categoria.
+
+Procesamiento:
+- No transforma datos.
+- Construye un Link de React Router usando la ruta recibida.
+
+Salida:
+- Tarjeta visual con imagen, degradado, titulo y subtitulo.
+
+Nota: en el codigo la funcion esta escrita como "CateogryCard" aunque el archivo se llama CategoryCard.tsx. Como se exporta por default funciona, pero conviene corregir el typo posteriormente por claridad.
+
+
+8.4 ProductCard.tsx
+-------------------
+Tarjeta reutilizable para mostrar un producto.
+
+Props recibidas:
+- id: id del producto.
+- name: nombre.
+- category: categoria.
+- price: precio numerico.
+- image: URL de imagen.
+- available: indica si existe al menos una variante disponible.
+
+Procesamiento:
+- Formatea el precio con toFixed(2).
+- Si available es false muestra una capa "No Disponible".
+- Construye enlaces a /producto/{id}.
+
+Salida:
+- Tarjeta de producto con imagen, nombre, categoria, precio y boton "Ver producto".
+
+
+9. CARPETA src/types
+--------------------
+Define los tipos TypeScript usados por la aplicacion. Estos archivos no ejecutan logica; sirven para que TypeScript valide que los datos tengan la estructura esperada.
+
+9.1 catalog.ts
+--------------
+ProductVariant:
+- idVariante
+- talla
+- color
+- sku
+- stock
+- stockMinimo
+- activo
+
+Product:
+- id
+- nombre
+- descripcion
+- precio
+- urlImg
+- activo
+- creadoEn
+- categoria
+- variantes: ProductVariant[]
+
+Importante:
+El precio vive en Product, no en ProductVariant, porque todas las variantes de un producto tienen el mismo precio segun las reglas actuales del proyecto.
+
+
+9.2 cart.ts
+-----------
+CartItem:
+- idVariante
+- cantidad
+
+El carrito guarda la variante seleccionada, no solamente el producto general.
+
+
+9.3 card.ts
+-----------
+CardProvider:
+Representa un proveedor externo de tarjeta.
+Campos:
+- identificador
+- activo
+- nombre
+- host
+- scriptAutorizacion
+
+PaymentAuthorizationRequest:
+Datos enviados para una autorizacion:
+- numeroTarjeta
+- titular
+- vencimiento
+- seguridad
+- monto
+- tienda
+- formato JSON/XML
+
+PaymentAuthorizationResult:
+Resultado normalizado:
+- issuerId
+- issuerName
+- status: APROBADO o DENEGADO
+- authorizationNumber
+- message
+
+
+9.4 courier.ts
+--------------
+Courier:
+- identificador
+- activo
+- nombre
+- host
+- scriptConsulta
+- scriptEnvio
+- scriptStatus
+
+CourierQuote:
+Resultado de una consulta de cobertura/costo:
+- courierId
+- courierName
+- cobertura
+- costoEnvio
+- mensaje
+
+ShippingStatus:
+Union numerica con valores 1 a 5.
+
+SHIPPING_STATUS_LABELS:
+1 = Orden Nueva
+2 = Orden Surtiendose
+3 = Orden Empacandose
+4 = Orden En ruta
+5 = Orden Entregada
+
+ShipmentRequest:
+Datos usados para solicitar un envio:
+- idOrdenTemporal
+- codigoDestino
+- direccionEnvio
+
+ShipmentCreationResult:
+- courierId
+- numeroEnvio
+- estadoEnvio
+
+ShipmentStatusResult:
+- courierId
+- numeroEnvio
+- estadoEnvio
+
+
+9.5 order.ts
+------------
+OrderDetailDraft:
+- idVariante
+- cantidad
+- precioPorUnidad
+
+El precio se copia al detalle para conservar el precio usado al momento de la compra.
+
+OrderDraft:
+Borrador de checkout antes de formalizar la orden.
+Incluye:
+- idTemporal
+- creadoEn
+- subtotalAntesDeEnvio
+- direccionDeEnvio
+- codigoDelDestino
+- idCourier
+- costoEnvio
+- total
+- idTarjeta
+- estadoDePagado
+- numAutorizacion
+- detalles
+
+PaymentStatus:
+- PENDIENTE
+- APROBADO
+- DENEGADO
+
+FinalizedOrder:
+Representa la orden ya completada localmente.
+Agrega a los datos anteriores:
+- id final de orden
+- numEnvio
+- estadoEnvio
+- datos obligatorios de courier, tarjeta y autorizacion
+
+
+10. CARPETA src/data
+--------------------
+Contiene datos estaticos usados solamente para la simulacion del frontend.
+En la version con backend estos datos deben provenir de la base de datos o servicios correspondientes.
+
+10.1 products.ts
+----------------
+Contiene un arreglo products: Product[].
+
+Actualmente incluye productos de prueba como:
+- Camiseta Running Pro
+- Sudadera Training
+- Leggings Performance
+- Tenis Performance X1
+- Camiseta Junior Sport
+
+Cada producto incluye variantes con talla, color, SKU y stock.
+
+Uso actual:
+- Home obtiene productos destacados.
+- Category filtra por categoria.
+- ProductDetail busca por id.
+- Cart, Checkout y OrderConfirmation reconstruyen informacion del producto a partir del id de variante.
+
+Reemplazo futuro:
+- Consultas HTTP al backend.
+
+
+10.2 couriers.ts
+----------------
+Contiene los couriers usados en la simulacion.
+
+Nombres actualmente configurados:
+- Envios Expresso
+- Entregas Rapiditas
+- Winnie Express
+
+Cada courier contiene:
+- identificador
+- activo
+- nombre
+- host de prueba
+- scriptConsulta
+- scriptEnvio
+- scriptStatus
+
+Los nombres corresponden a los couriers de los otros grupos, pero los hosts actuales siguen siendo datos simulados y deben reemplazarse por las IP reales.
+
+
+10.3 cards.ts
+-------------
+Contiene proveedores de tarjeta y el mapa de prefijos.
+
+Prefijos oficiales del proyecto:
+- 4 -> VISA
+- 5 -> MASTERCARD
+- 3 -> AMERICAN EXPRESS
+- 2 -> CREDOMATIC
+
+El frontend identifica el proveedor con el primer digito del numero de tarjeta.
+
+IMPORTANTE SOBRE EL ESTADO ACTUAL DEL ARCHIVO:
+El mapa cardPrefixMap ya contiene TARJ-AMEX para el prefijo 3, pero el arreglo cardProviders del ZIP recibido contiene Visa, Mastercard y Credomatic y NO contiene todavia el objeto American Express. Antes de probar American Express o conectar los servicios reales se debe agregar el proveedor TARJ-AMEX al arreglo cardProviders.
+
+Los hosts actuales son de prueba.
+
+
+11. CARPETA src/context
+-----------------------
+Los contextos contienen estado global compartido por distintas paginas.
+
+11.1 CartContext.tsx
+--------------------
+Gestiona el carrito.
+
+Estado principal:
+items: CartItem[]
+
+Persistencia:
+- Guarda y recupera el carrito en localStorage con la llave:
+  megasport-cart
+
+Funciones expuestas:
+
+addItem(idVariante, cantidad, stockDisponible)
+  Entradas:
+  - idVariante
+  - cantidad solicitada
+  - stock disponible
+
+  Procesamiento:
+  - Rechaza cantidad <= 0 o stock <= 0.
+  - Si la variante ya existe en el carrito, suma cantidades.
+  - Usa Math.min para impedir superar el stock.
+  - Si no existe, crea un nuevo CartItem.
+
+  Salida:
+  - Actualiza items del contexto.
+
+updateQuantity(idVariante, nuevaCantidad, stockDisponible)
+  - Si nuevaCantidad <= 0 elimina el item.
+  - De lo contrario actualiza cantidad sin superar stock.
+
+removeItem(idVariante)
+  - Elimina del arreglo la variante indicada.
+
+clearCart()
+  - Vacia todos los items.
+
+ totalItems
+  - Valor calculado con useMemo.
+  - Suma todas las cantidades del carrito.
+
+useCart()
+  - Hook auxiliar para consumir el contexto.
+  - Lanza un error si se usa fuera de CartProvider.
+
+
+11.2 OrderContext.tsx
+---------------------
+Gestiona el proceso de checkout, el borrador de orden y las ordenes finalizadas.
+
+Estados principales:
+- orderDraft: OrderDraft | null
+- completedOrders: FinalizedOrder[]
+
+Persistencia local:
+- megasport-order-draft
+- megasport-orders
+
+Funciones expuestas:
+
+startOrder(data)
+  Recibe:
+  - subtotalAntesDelEnvio
+  - detalles
+
+  Procesamiento:
+  - Crea un id temporal con crypto.randomUUID().
+  - Inicializa direccion/destino vacios.
+  - Inicializa courier y tarjeta en null.
+  - Estado de pago inicial: PENDIENTE.
+  - Total inicial = subtotal.
+
+  Salida:
+  - Guarda un nuevo OrderDraft.
+
+updateShippingData(data)
+  Recibe:
+  - direccionDeEnvio
+  - codigoDelDestino
+
+  Procesamiento:
+  - Actualiza direccion y destino.
+  - Invalida cualquier courier anterior.
+  - Reinicia costo de envio a 0.
+  - Restablece total al subtotal.
+
+selectCourier(data)
+  Recibe:
+  - idCourier
+  - costoEnvio
+
+  Procesamiento:
+  - Guarda el courier.
+  - Calcula total = subtotal + costoEnvio.
+  - Reinicia datos de pago porque un cambio de courier cambia el monto final.
+
+registerPaymentResult(data)
+  Recibe:
+  - idTarjeta
+  - estadoDePagado
+  - numAutorizacion
+
+  Salida:
+  - Actualiza el borrador con el resultado del pago.
+
+finalizeOrder(data)
+  Recibe:
+  - numeroEnvio
+  - estadoEnvio
+
+  Validaciones:
+  - Debe existir orderDraft.
+  - El pago debe estar APROBADO.
+  - Deben existir courier, tarjeta y numero de autorizacion.
+
+  Procesamiento:
+  - Genera un id local de orden tipo ORD-...
+  - Copia los datos del borrador a FinalizedOrder.
+  - Agrega numEnvio y estadoEnvio.
+  - Inserta la orden al inicio de completedOrders.
+  - Elimina orderDraft.
+
+  Salida:
+  - FinalizedOrder creada, o null si falla una validacion.
+
+updateOrderShippingStatus(orderId, estadoEnvio)
+  - Busca la orden finalizada por id.
+  - Sustituye su estadoEnvio.
+
+clearOrderDraft()
+  - Elimina el borrador actual.
+
+useOrder()
+  - Hook auxiliar para acceder al contexto.
+
+
+12. CARPETA src/services
+------------------------
+Contiene la logica que simula integraciones externas.
+Esta carpeta sera uno de los principales puntos de cambio cuando exista backend real.
+
+12.1 cardService.ts
+-------------------
+Funciones principales:
+
+identificarTarjetaPorNumero(numeroTarjeta)
+  Entrada:
+  - numeroTarjeta como string.
+
+  Procesamiento:
+  - Elimina caracteres que no sean digitos.
+  - Lee el primer digito.
+  - Consulta cardPrefixMap.
+  - Busca un proveedor activo con ese identificador.
+
+  Salida:
+  - CardProvider encontrado, o null.
+
+autorizarPago(request)
+  Entrada:
+  - PaymentAuthorizationRequest.
+
+  Procesamiento actual:
+  - Simula latencia de red con wait().
+  - Detecta el proveedor.
+  - Si no existe, devuelve DENEGADO.
+  - Para la simulacion, si el ultimo digito de la tarjeta es PAR se aprueba.
+  - Si es IMPAR se deniega.
+  - Si aprueba genera un numero AUTH-...
+
+  Salida:
+  - PaymentAuthorizationResult.
+
+Reemplazo futuro:
+- El frontend debera llamar al backend MegaSport.
+- El backend determinara el proveedor, consultara la entidad Tarjeta de la BD y usara host + scriptAutorizacion para comunicarse con el servicio externo real.
+
+
+12.2 courierService.ts
+----------------------
+Simula tres operaciones distintas del Courier:
+- Cotizacion/cobertura.
+- Creacion de envio.
+- Consulta de estado.
+
+Funciones auxiliares:
+
+wait(ms)
+  - Simula latencia de red.
+
+calculateMockZone(codigoDestino)
+  - Convierte el codigo de destino en una zona ficticia de 1 a 22.
+  - Solo existe para obtener costos distintos en la simulacion.
+
+consultarCourier(courier, codigoDestino)
+  Entrada:
+  - Courier.
+  - codigoDestino de 5 caracteres.
+
+  Procesamiento:
+  - Simula espera.
+  - Valida que el courier este activo.
+  - Valida longitud de destino.
+  - Aplica reglas locales de cobertura y costo.
+
+  Salida:
+  - CourierQuote con cobertura, costo y mensaje.
+
+consultarTodosLosCouriers(codigoDestino)
+  Entrada:
+  - codigoDestino.
+
+  Procesamiento:
+  - Filtra couriers activos.
+  - Usa Promise.all para consultar todos en paralelo.
+
+  Salida:
+  - CourierQuote[].
+
+getMockShipments()/saveMockShipments()
+  - Leen y guardan envios simulados en localStorage.
+  - Llave: megasport-mock-shipments.
+
+solictarEnvio(courierId, request)
+  NOTA: el nombre actual de la funcion en el codigo es "solictarEnvio". Conviene renombrarla a "solicitarEnvio" antes de la integracion final.
+
+  Entrada:
+  - courierId.
+  - ShipmentRequest con id temporal, destino y direccion.
+
+  Procesamiento:
+  - Busca courier activo.
+  - Valida codigo de destino.
+  - Genera un numero ENV-...
+  - Guarda un envio simulado con fecha de creacion.
+
+  Salida:
+  - ShipmentCreationResult con estado inicial 1.
+
+consultarEstadoEnvio(courierId, numeroEnvio)
+  Entrada:
+  - courierId.
+  - numeroEnvio.
+
+  Procesamiento actual:
+  - Busca el envio en localStorage.
+  - Calcula segundos transcurridos.
+  - Cada 10 segundos avanza un estado hasta un maximo de 5.
+
+  Salida:
+  - ShipmentStatusResult.
+
+Reemplazo futuro:
+- Estas funciones deberan llamar al backend MegaSport.
+- El backend obtendra host y scripts del Courier guardado en la base de datos.
+- El backend llamara los Web Services reales de Envios Expresso, Entregas Rapiditas o Winnie Express.
+
+
+13. CARPETA src/pages
+---------------------
+Contiene cada pantalla completa de la aplicacion.
+
+13.1 Home.tsx
+-------------
+Pagina principal.
+
+Responsabilidades:
+- Hero principal de MegaSport.
+- Beneficios generales.
+- Seccion de categorias.
+- Productos destacados.
+- Seccion promocional.
+
+Datos:
+- categories es un arreglo local de presentacion.
+- featuredProducts toma los primeros 4 productos activos desde products.ts.
+
+Para cada producto destacado calcula available comprobando si existe al menos una variante activa con stock > 0.
+
+Salida:
+- ProductCard y CategoryCard reutilizables.
+
+Nota tecnica actual:
+El ZIP contiene un import no utilizado:
+import Category from "./Category"
+TypeScript tiene noUnusedLocals habilitado, por lo que este import impide npm run build. Se puede eliminar sin afectar el funcionamiento.
+
+
+13.2 Category.tsx
+-----------------
+Catalogo de una categoria.
+
+Entrada:
+- Parametro :category de la URL mediante useParams().
+
+Procesamiento:
+- Convierte el slug a un titulo legible.
+- Filtra products por categoria y activo.
+- Para cada producto calcula disponibilidad buscando variantes activas con stock > 0.
+
+Salida:
+- Lista de ProductCard.
+- Mensaje si no existen productos.
+
+
+13.3 ProductDetail.tsx
+----------------------
+Detalle y seleccion de variante.
+
+Entrada:
+- :id de la URL.
+
+Procesamiento:
+- Busca el producto activo con ese id.
+- Obtiene colores unicos de variantes activas.
+- Cuando se selecciona un color, filtra las tallas disponibles para ese color.
+- selectedVariant representa la combinacion exacta de color + talla.
+- La cantidad no puede superar stock.
+
+Funciones principales:
+- handleColorSelection(color): cambia color, reinicia talla y cantidad.
+- handleSizeSelection(size): cambia talla y reinicia cantidad.
+- increaseQuantity(): incrementa si hay stock.
+- decreaseQuantity(): disminuye hasta minimo 1.
+- handleAddToCart(): llama addItem(idVariante, cantidad, stock).
+
+Salida:
+- Informacion del producto.
+- Selector de color/talla.
+- SKU y stock.
+- Selector de cantidad.
+- Boton para agregar al carrito.
+
+
+13.4 Cart.tsx
+-------------
+Pantalla del carrito.
+
+Datos de entrada:
+- items desde CartContext.
+- products desde data/products.
+
+Procesamiento:
+- detailedItems reconstruye Product y ProductVariant a partir de idVariante.
+- subtotal suma product.precio * item.cantidad.
+
+Funciones:
+- updateQuantity: proviene de CartContext.
+- removeItem: proviene de CartContext.
+- clearCart: vacia carrito.
+- handleContinuePurchase(): convierte el carrito en detalles de orden, llama startOrder() y navega a /checkout.
+
+Datos creados al continuar:
+- idVariante
+- cantidad
+- precioPorUnidad
+- subtotalAntesDelEnvio
+
+Salida:
+- Lista de items, cantidades, subtotales y resumen.
+
+
+13.5 Checkout.tsx
+-----------------
+Captura los datos de entrega.
+
+Entrada:
+- orderDraft desde OrderContext.
+
+Estado local:
+- direccion
+- codigoDestino
+
+Validaciones actuales:
+- codigoDestino debe tener exactamente 5 caracteres.
+- direccion debe tener mas de 5 caracteres.
+
+handleSaveShipping()
+  - Guarda direccion y codigo con updateShippingData().
+  - Navega a /checkout/courier.
+
+Tambien reconstruye los detalles para mostrar un resumen de compra.
+
+
+13.6 CourierSelection.tsx
+-------------------------
+Consulta y seleccion de courier.
+
+Entrada:
+- orderDraft, especialmente codigoDelDestino.
+
+Estado local:
+- quotes
+- loading
+- error
+- selectedCourier
+
+Funciones:
+
+consultarCouriers()
+  - Llama consultarTodosLosCouriers(codigoDestino).
+  - Maneja loading/error.
+  - Guarda CourierQuote[].
+
+useEffect()
+  - Ejecuta la consulta automaticamente al entrar a la pantalla.
+
+handleSelectCourier(quote)
+  - Rechaza opciones sin cobertura o costo.
+  - Guarda courier seleccionado en estado local.
+  - Llama selectCourier() del contexto.
+
+handleContinuePayment()
+  - Si existe una cotizacion seleccionada navega a /checkout/pago.
+
+Salida:
+- Opciones de Envios Expresso, Entregas Rapiditas y Winnie Express.
+- Cobertura/costo.
+- Resumen con subtotal, envio y total.
+
+
+13.7 Payment.tsx
+----------------
+Pantalla de pago.
+
+Entrada:
+- orderDraft.
+- courier previamente seleccionado.
+
+Estado local:
+- numeroTarjeta
+- titular
+- vencimiento
+- seguridad
+- processing
+- result
+- finalizing
+- finalizeError
+
+Validaciones:
+- Numero: exactamente 16 digitos.
+- Titular: minimo 3 caracteres.
+- Seguridad: 3 o 4 digitos.
+- Vencimiento: YYYYMM, mes valido y no vencido.
+- Debe existir proveedor reconocido.
+
+Proveedor:
+- identificarTarjetaPorNumero() usa el primer digito.
+
+handleSubmit()
+  - Crea PaymentAuthorizationRequest.
+  - Envia monto = orderDraft.total.
+  - Llama autorizarPago().
+  - Guarda resultado en registerPaymentResult().
+
+paymentApproved
+  - true si estadoDePagado es APROBADO.
+
+handleFinalizeOrder()
+  - Verifica pago aprobado y courier.
+  - Llama solictarEnvio().
+  - Recibe numeroEnvio y estadoEnvio.
+  - Llama finalizeOrder().
+  - Si todo sale bien vacia el carrito.
+  - Navega a /orden/{id}.
+
+Seguridad de la simulacion:
+- El numero completo de tarjeta, vencimiento y CVV se mantienen en estado local de la pagina y no se guardan en OrderContext ni en localStorage.
+
+
+13.8 OrderConfirmation.tsx
+--------------------------
+Pantalla final de orden y seguimiento.
+
+Entrada:
+- :id de la URL.
+- completedOrders desde OrderContext.
+
+Procesamiento:
+- Busca la orden finalizada por id.
+- Busca el courier por idCourier.
+- Reconstruye productos/variantes a partir de los detalles.
+
+handleUpdateStatus()
+  - Llama consultarEstadoEnvio(idCourier, numEnvio).
+  - Recibe un ShippingStatus.
+  - Llama updateOrderShippingStatus().
+
+Salida:
+- Numero de orden.
+- Numero de autorizacion.
+- Courier.
+- Numero de envio.
+- Estado actual.
+- Timeline de los cinco estados.
+- Productos comprados.
+- Subtotal, envio y total.
+- Direccion de entrega.
+
+
+13.9 NotFound.tsx
+-----------------
+Pagina 404 para rutas no registradas.
+
+Entrada:
+- Ninguna.
+
+Salida:
+- Mensaje de pagina inexistente y enlace al inicio.
+
+Nota menor: la clase "felx" aparece escrita en lugar de "flex" en el archivo actual, por lo que ese estilo concreto no se aplica.
+
+
+14. LOCALSTORAGE UTILIZADO
+--------------------------
+El frontend usa localStorage para simular persistencia mientras no existe backend.
+
+Llaves actuales:
+
+megasport-cart
+  Guarda CartItem[].
+
+megasport-order-draft
+  Guarda el checkout/orden que todavia no se ha formalizado.
+
+megasport-orders
+  Guarda FinalizedOrder[].
+
+megasport-mock-shipments
+  Guarda envios falsos y su momento de creacion para simular cambios de estado.
+
+IMPORTANTE:
+localStorage NO reemplaza la base de datos. Es solamente una herramienta temporal para la fase frontend.
+
+
+15. RELACION CON EL MODELO ENTIDAD-RELACION APROBADO
+-----------------------------------------------------
+La estructura del frontend ya intenta seguir el ER del proyecto.
+
+Categoria
+  -> Product.categoria durante la simulacion.
+
+Producto
+  -> nombre, descripcion, precio, imagen, activo.
+
+Variante_producto
+  -> talla, color, SKU, stock, stockMinimo y activo.
+
+Carrito
+  -> representado temporalmente por CartContext.
+
+articulo_en_carrito
+  -> CartItem con idVariante y cantidad.
+
+Orden
+  -> OrderDraft mientras esta en checkout.
+  -> FinalizedOrder despues de completar pago y envio.
+
+Detalle_orden
+  -> OrderDetailDraft con idVariante, cantidad y precioPorUnidad.
+
+Courier
+  -> src/data/couriers.ts durante la simulacion.
+
+Tarjeta
+  -> src/data/cards.ts durante la simulacion.
+
+Cuando se implemente la base de datos, estos objetos deben venir de las tablas reales y las relaciones deben resolverse en el backend.
+
+
+16. QUE DEBE CAMBIAR AL IMPLEMENTAR EL BACKEND
+----------------------------------------------
+La interfaz visual puede mantenerse en gran medida.
+
+Cambios principales esperados:
+
+1. products.ts
+   Dejara de ser la fuente principal.
+   Los productos y variantes se obtendran desde endpoints del backend.
+
+2. CartContext
+   Puede conservar estado visual, pero el carrito persistente debera sincronizarse con las tablas Carrito y articulo_en_carrito.
+
+3. OrderContext
+   OrderDraft puede seguir sirviendo como estado de interfaz, pero la orden real debera formalizarse con transacciones del backend y base de datos.
+
+4. courierService.ts
+   Debe dejar de calcular zonas/precios localmente.
+   Debe llamar al backend.
+   El backend consultara la tabla Courier y luego los Web Services de los otros grupos.
+
+5. cardService.ts
+   Debe dejar de aprobar por ultimo digito par/impar.
+   Debe llamar al backend.
+   El backend elegira el proveedor por prefijo, obtendra host/script de Tarjeta y realizara la autorizacion real.
+
+6. Orden final
+   El id no debe generarse en el navegador.
+   Debe generarlo la base de datos o backend.
+
+7. Stock
+   La validacion definitiva y decremento de stock deben ejecutarse en backend, idealmente dentro de una transaccion.
+   El frontend solamente debe mostrar la informacion recibida.
+
+8. Precios
+   El backend no debe confiar en precios enviados por el navegador.
+   Al crear la orden debe leer el precio actual de Producto desde la base de datos y copiarlo a Detalle_orden.Precio_por_unidad.
+
+9. Usuario
+   Todavia no existe implementacion de registro/login/roles/administracion en este frontend.
+   Se agregara junto con el backend segun la entidad Usuario y los CRUD requeridos.
+
+10. CRUD administrativo
+   Todavia no estan implementadas pantallas de mantenimiento para productos, variantes, categorias, usuarios, couriers o tarjetas.
+   Son parte de una fase posterior.
+
+
+17. INTEGRACIONES EXTERNAS PREVISTAS
+------------------------------------
+Courier:
+- Consulta de costo/cobertura.
+- Solicitud de envio.
+- Consulta de estado.
+
+Couriers conocidos:
+- Envios Expresso
+- Entregas Rapiditas
+- Winnie Express
+
+Tarjetas:
+- VISA: primer digito 4
+- MASTERCARD: primer digito 5
+- AMERICAN EXPRESS: primer digito 3
+- CREDOMATIC: primer digito 2
+
+La version final usara direccion IP y scripts almacenados en la base de datos, no DNS fijo escrito directamente en el frontend.
+
+
+18. DATOS DE SIMULACION QUE NO DEBEN CONFUNDIRSE CON LOGICA REAL
+---------------------------------------------------------------
+Actualmente son exclusivamente de prueba:
+
+- IPs 192.168.50.x de couriers.
+- IPs 192.168.60.x de tarjetas.
+- Reglas baseCost/zoneMultiplier/maxZone de couriers.
+- Calculo artificial de zona desde codigoDestino.
+- Cambios automaticos de estado cada 10 segundos.
+- Numero de envio ENV-... generado con Date.now().
+- Aprobacion de tarjeta basada en ultimo digito par/impar.
+- Numero de autorizacion AUTH-... generado con Date.now().
+- IDs finales de orden ORD-... generados en frontend.
+- Productos almacenados en products.ts.
+
+Todo esto existe para poder probar el flujo de la interfaz antes de implementar los servicios reales.
+
+
+19. OBSERVACIONES TECNICAS IMPORTANTES DEL ZIP RECIBIDO
+-------------------------------------------------------
+Estas observaciones describen el estado exacto del codigo al momento de crear esta documentacion:
+
+1. Home.tsx importa Category pero no lo usa:
+   import Category from "./Category"
+   Con noUnusedLocals activado, npm run build falla por este import. Se puede borrar.
+
+2. cards.ts tiene el prefijo 3 -> TARJ-AMEX, pero falta agregar American Express al arreglo cardProviders.
+
+3. courierService.ts exporta actualmente "solictarEnvio" en lugar de "solicitarEnvio". El proyecto funciona mientras todos los imports usen el mismo nombre, pero conviene corregirlo antes de la integracion final.
+
+4. CategoryCard.tsx usa el nombre de funcion "CateogryCard". Es solo un typo de nombre interno.
+
+5. NotFound.tsx tiene la clase Tailwind "felx" en vez de "flex".
+
+6. Las imagenes de catalogo/home son URLs externas de Unsplash/Pixabay. En produccion podria convenir guardar URLs administradas por la tienda o servir archivos propios.
+
+Estas observaciones no cambian la arquitectura general del proyecto, pero son buenos puntos de limpieza antes de iniciar la fase backend.
+
+
+20. RESUMEN PARA UNA PERSONA QUE MODIFIQUE EL PROYECTO
+------------------------------------------------------
+Si se quiere cambiar la apariencia:
+- Revisar src/pages y src/components.
+
+Si se quiere agregar o cambiar productos temporales:
+- src/data/products.ts
+
+Si se quiere cambiar la estructura TypeScript de productos/carrito/orden:
+- src/types
+
+Si se quiere cambiar la logica global del carrito:
+- src/context/CartContext.tsx
+
+Si se quiere cambiar el flujo de checkout/orden:
+- src/context/OrderContext.tsx
+- src/pages/Cart.tsx
+- src/pages/Checkout.tsx
+- src/pages/CourierSelection.tsx
+- src/pages/Payment.tsx
+- src/pages/OrderConfirmation.tsx
+
+Si se quiere cambiar la simulacion de couriers:
+- src/data/couriers.ts
+- src/services/courierService.ts
+
+Si se quiere cambiar la simulacion de tarjetas:
+- src/data/cards.ts
+- src/services/cardService.ts
+
+Si se quieren agregar nuevas rutas:
+- src/App.tsx
+
+Si se quieren cambiar providers globales:
+- src/main.tsx
+
+
+21. ESTADO DE ESTA FASE
+-----------------------
+El frontend ya cubre el flujo principal de comercio electronico necesario para comenzar la siguiente fase:
+
+- Catalogo: listo en simulacion.
+- Variantes/stock: listo en simulacion.
+- Carrito: funcional localmente.
+- Checkout: funcional localmente.
+- Seleccion de Courier: funcional con servicio simulado.
+- Pago: funcional con servicio simulado.
+- Orden: funcional localmente.
+- Solicitud y seguimiento de envio: funcional con simulacion.
+
+Pendiente para las siguientes fases:
+
+- Diseno e implementacion fisica de la base de datos.
+- Backend Node.js.
+- Conexion frontend-backend.
+- CRUD administrativo.
+- Usuarios, autenticacion y roles.
+- Integracion real con los tres couriers.
+- Integracion real con los cuatro proveedores de tarjeta.
+- Persistencia real de carritos, ordenes, detalles, inventario y usuarios.
+- Validaciones y transacciones definitivas en servidor.
+
+FIN DE DOCUMENTACION DEL FRONTEND

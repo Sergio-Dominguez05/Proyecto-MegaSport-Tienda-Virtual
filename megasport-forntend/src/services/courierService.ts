@@ -1,10 +1,10 @@
 import { couriers } from "../data/couriers";
 import type { Courier } from "../types/courier";
 import type { CourierQuote } from "../types/courier";
-import type { ShipmentRequest } from "../data/couriers";
-import type { ShipmentCreationResult } from "../data/couriers";
-import type { ShipmentStatusResult } from "../data/couriers";
-import type { ShippingStatus } from "../data/couriers";
+import type { ShipmentRequest } from "../types/courier";
+import type { ShipmentCreationResult } from "../types/courier";
+import type { ShipmentStatusResult } from "../types/courier";
+import type { ShippingStatus } from "../types/courier";
 
 type MockCourierRule = {
     baseCost: number
@@ -192,7 +192,7 @@ export async function consultarEstadoEnvio(courierId: string, numeroEnvio: strin
 
     const elapsedSeconds = Math.floor((Date.now() - shipment.creadoEn) / 1000)
 
-    const calculatedStatus = Math.min(5, 1 + Math.floor(elapsedSeconds / 10) as ShippingStatus)
+    const calculatedStatus: ShippingStatus = Math.min(5, 1 + Math.floor(elapsedSeconds / 10)) as ShippingStatus
 
     return{
         courierId,

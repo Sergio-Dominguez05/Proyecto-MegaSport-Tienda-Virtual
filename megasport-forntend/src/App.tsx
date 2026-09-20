@@ -9,6 +9,7 @@ import ProductDetail from './pages/ProductDetail'
 import Checkout from './pages/Checkout'
 import CourierSelection from './pages/CourierSelection'
 import Payment from './pages/Payment'
+import OrderConfirmation from './pages/OrderConfirmation'
 
 
 function App() {
@@ -48,6 +49,11 @@ function App() {
             <Route 
               path="/checkout/pago"
               element={<Payment />}
+            />
+
+            <Route 
+              path='/orden/:id'
+              element={<OrderConfirmation />}
             />
 
             <Route 

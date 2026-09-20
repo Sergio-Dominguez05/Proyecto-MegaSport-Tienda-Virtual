@@ -5,6 +5,8 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import type { OrderDetailDraft } from "../types/order";
 import type { OrderDraft } from "../types/order";
+import type { FinalizedOrder } from "../types/order";
+import type { ShippingStatus } from "../types/courier";
 
 type StartOrderData = {
     subtotalAntesDelEnvio: number
@@ -29,6 +31,11 @@ type PaymentResultData= {
     numAutorizacion: string | null
 }
 
+type FinalizedOrderData = {
+    numeroEnvio: string
+    estadoEnvio: ShippingStatus
+}
+
 type OrderContextType ={
     orderDraft: OrderDraft | null
     
@@ -48,6 +55,18 @@ type OrderContextType ={
     registerPaymentResult: (
         data: PaymentResultData
     ) => void
+
+    completedOrders: FinalizedOrder[]
+
+    finalizeOrder : (
+        data: FinalizedOrderData
+    ) => FinalizedOrder | null
+
+    updateOrderShippingStatus : (
+        orderId: string,
+        estadoEnvio: ShippingStatus
+    ) => void
+    
 
     clearOrderDraft: (
 
@@ -154,14 +173,91 @@ function OrderProvider ({children} : OrderProviderProps){
         setOrderDraft(null)
     }
 
+    const [completedOrders, setCompletedOrders] = useState<FinalizedOrder[]>(() => {
+
+        const saved =localStorage.getItem('megasport-orders')
+
+        if(!saved) {
+            return []
+        }
+
+        try{
+            return JSON.parse(saved)
+        } catch {
+            return []
+        }
+
+    })
+
+    useEffect(() => {
+        localStorage.setItem('megasport-orders', JSON.stringify(completedOrders))
+    }, [completedOrders])
+
+    const finalizeOrder = (data: FinalizedOrderData): FinalizedOrder | null => {
+        if (!orderDraft){
+            return null
+        }
+
+        if (orderDraft.estadoDePagado !== 'APROBADO'){
+            return null
+        }
+
+        if (!orderDraft.idCourier || !orderDraft.idTarjeta || !orderDraft. numAutorizacion){
+            return null
+        }
+
+        const finalizeOrder: FinalizedOrder = {
+            id: `ORD-${Date.now().toString().slice(-10)}`,
+            creadoEn: new Date().toISOString(),
+            subtotalAntesDeEnvio: orderDraft.subtotalAntesDeEnvio,
+            costoEnvio: orderDraft.costoEnvio,
+            total: orderDraft.total,
+            direccionDeEnvio: orderDraft.direccionDeEnvio,
+            codigoDelDestino: orderDraft.codigoDelDestino,
+            idCourier: orderDraft.idCourier,
+            idTarjeta: orderDraft.idTarjeta,
+            estadoDePagado: 'APROBADO',
+            numAutorizacion: orderDraft.numAutorizacion,
+            numEnvio: data.numeroEnvio,
+            estadoEnvio: data.estadoEnvio,
+            detalles: orderDraft.detalles
+        }
+
+        setCompletedOrders((currentOrders) => [
+            finalizeOrder,
+            ...currentOrders
+        ])
+
+        setOrderDraft(null)
+
+        return finalizeOrder
+    }
+
+    const updateOrderShippingStatus = (orderId: string, estadoEnvio: ShippingStatus) => {
+        setCompletedOrders((currentOrders) => currentOrders.map((order) => {
+                if (order.id !== orderId) {
+                    return order
+                }
+
+                return {
+                    ...order,
+                    estadoEnvio,
+                }
+
+        }))
+    }
+
     return (
         <OrderContext.Provider
             value={{
                 orderDraft,
+                completedOrders,
                 startOrder,
                 updateShippingData,
                 selectCourier,
                 registerPaymentResult,
+                finalizeOrder,
+                updateOrderShippingStatus,
                 clearOrderDraft
             }}>
 

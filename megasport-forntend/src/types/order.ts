@@ -1,3 +1,5 @@
+import type { ShippingStatus } from "./courier"
+
 export type OrderDetailDraft = {
     idVariante: number
     cantidad: number
@@ -24,3 +26,20 @@ export type PaymentStatus =
     | 'PENDIENTE'
     | 'APROBADO'
     | 'DENEGADO'
+
+export type FinalizedOrder = {
+    id: string
+    creadoEn: string  
+    subtotalAntesDeEnvio: number
+    costoEnvio: number
+    total: number
+    direccionDeEnvio: string
+    codigoDelDestino: string
+    idCourier: string
+    idTarjeta: string
+    estadoDePagado: 'APROBADO'
+    numAutorizacion: string
+    numEnvio: string
+    estadoEnvio: ShippingStatus
+    detalles: OrderDetailDraft[]
+}
