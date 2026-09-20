@@ -21,8 +21,17 @@ type CourierSelectionData = {
     costoEnvio: number
 }
 
+type PaymentResultData= {
+    idTarjeta: string
+    estadoDePagado:
+        | 'APROBADO'
+        | 'DENEGADO'
+    numAutorizacion: string | null
+}
+
 type OrderContextType ={
     orderDraft: OrderDraft | null
+    
 
     startOrder: (
         data: StartOrderData
@@ -34,6 +43,10 @@ type OrderContextType ={
 
     selectCourier: (
         data: CourierSelectionData
+    ) => void
+
+    registerPaymentResult: (
+        data: PaymentResultData
     ) => void
 
     clearOrderDraft: (
@@ -80,6 +93,9 @@ function OrderProvider ({children} : OrderProviderProps){
             idCourier: null,
             costoEnvio: 0,
             total: data.subtotalAntesDelEnvio,
+            idTarjeta: null,
+            estadoDePagado: 'PENDIENTE',
+            numAutorizacion: null,
             detalles: data.detalles
         }
         setOrderDraft(newOrder)
@@ -111,7 +127,25 @@ function OrderProvider ({children} : OrderProviderProps){
                 ...currentOrder,
                 idCourier: data.idCourier,
                 costoEnvio: data.costoEnvio,
-                total: currentOrder.subtotalAntesDeEnvio + data.costoEnvio
+                total: currentOrder.subtotalAntesDeEnvio + data.costoEnvio,
+                idTarjeta: null,
+                estadoDePagado: 'PENDIENTE',
+                numAutorizacion: null
+            }
+        })
+    }
+
+    const registerPaymentResult = (data: PaymentResultData) => {
+        setOrderDraft((currentOrder) => {
+            if(!currentOrder){
+                return null
+            }
+            return{
+                ...currentOrder,
+                idTarjeta: data.idTarjeta,
+                estadoDePagado: data.estadoDePagado,
+                numAutorizacion: data.numAutorizacion
+
             }
         })
     }
@@ -127,6 +161,7 @@ function OrderProvider ({children} : OrderProviderProps){
                 startOrder,
                 updateShippingData,
                 selectCourier,
+                registerPaymentResult,
                 clearOrderDraft
             }}>
 

@@ -8,6 +8,7 @@ import Footer from './components/Footer'
 import ProductDetail from './pages/ProductDetail'
 import Checkout from './pages/Checkout'
 import CourierSelection from './pages/CourierSelection'
+import Payment from './pages/Payment'
 
 
 function App() {
@@ -43,6 +44,10 @@ function App() {
             <Route 
               path="/checkout/courier"
               element={<CourierSelection />}
+            />
+            <Route 
+              path="/checkout/pago"
+              element={<Payment />}
             />
 
             <Route 

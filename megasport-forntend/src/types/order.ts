@@ -13,6 +13,14 @@ export type OrderDraft = {
     idCourier: string | null
     costoEnvio: number
     total: number
+    idTarjeta: string | null
+    estadoDePagado: PaymentStatus
+    numAutorizacion: string | null
     detalles: OrderDetailDraft[]
 
 }
+
+export type PaymentStatus =
+    | 'PENDIENTE'
+    | 'APROBADO'
+    | 'DENEGADO'

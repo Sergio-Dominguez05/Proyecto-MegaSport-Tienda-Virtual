@@ -5,9 +5,11 @@ import { Link } from "react-router-dom";
 import { useOrder } from "../context/OrderContext";
 import { consultarTodosLosCouriers } from "../services/courierService";
 import type { CourierQuote } from "../types/courier";
+import { useNavigate } from "react-router-dom";
 
 function CourierSelection(){
     const {orderDraft, selectCourier} = useOrder()
+    const navigate = useNavigate()
 
     const [quotes, setQuotes] = useState<CourierQuote[]>([])
     const [loading, setLoading] = useState(false)
@@ -94,7 +96,7 @@ function CourierSelection(){
         if (!selectedQuote){
             return
         }
-        alert('Aqui ya se selecciono bien el courier, esta onda despues va a manejar el pago de la tarjeta')
+        navigate('/checkout/pago')
     }
 
     return(
