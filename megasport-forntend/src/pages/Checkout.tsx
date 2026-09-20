@@ -62,7 +62,7 @@ function Checkout () {
 
     const destinationIsValid = codigoDestino.trim().length === 5
 
-    const addressIsValid = direccion.trim().length === 5
+    const addressIsValid = direccion.trim().length > 5
 
     const formIsValid = destinationIsValid && addressIsValid
 
