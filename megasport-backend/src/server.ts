@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { pool } from './config/database.js'
+import categoryRoutes from './routes/categoryRoutes.js'
+import productRoutes from './routes/productRoutes.js'
 
 dotenv.config()
 
@@ -20,7 +22,6 @@ app.get('/api/health', (_req, res) => {
     })
 })
 
-/**Prueba de conexion con postgre */
 
 app.get('/api/db-test', async(_req, res) => {
     try {
@@ -41,27 +42,10 @@ app.get('/api/db-test', async(_req, res) => {
     }
 })
 
-app.get('/api/test/productos', async (_req, res) => {
+app.use('/api/categorias', categoryRoutes)
 
-    try {
+app.use('/api/productos', productRoutes)
 
-      const result = await pool.query(`SELECT id, nombre, descripcion, precio, url_img, activo FROM producto ORDER BY id`)
-
-      res.json(result.rows)
-
-    } catch (error) {
-
-      console.error(error)
-
-      res.status(500).json({
-        message:
-          'Error consultando productos',
-      })
-
-    }
-
-  }
-)
 
 app.listen(PORT, () => {
     console.log(`Se esta ejecutando la API del megasport en http://localhost:${PORT}`)
