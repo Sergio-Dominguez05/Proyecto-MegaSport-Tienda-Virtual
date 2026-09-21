@@ -1,0 +1,17 @@
+Esta de aqui es la documentacion de BackEnd para lo que llevo el BackEnd usa:
+- Express para servidor HTTP y API
+- PG para conexion directa con PostgreSQL (que es lo que se usa en la base de datos)
+- Cors para hacer llamadas desde React (FrontEnd)
+- DotENV para variables privadas como la contraseña de la base de datos
+- SupaBase como base de datos externa para la tienda (PostgreSQL)
+
+Las carpetas que componen src son:
+- Routes para guardar las URL disponibles (E.g GET /api/productos)
+
+- Controllers para recibir las solicitudes HTTP y ver que hacer (E.g GET /api/productos -> productoController)
+
+- Services contiene logica importante para cosas como consultar couriers, autorizar tarjeta, crear orden, actualizar inventario, etc.
+
+- Config es para la configuracion general (en especial la de la base de datos)
+
+- types son para interfaces TypeScript compartidas
