@@ -1,10 +1,16 @@
 import { Link } from "react-router-dom"
 import CateogryCard from "../components/CategoryCard"
 import ProductCard from "../components/ProductCard"
-import Category from "./Category"
-import { products } from "../data/products"
+import { useEffect } from "react"
+import { useState } from "react"
+import { getProducts } from "../services/catalogApi"
+import type { Product } from "../types/catalog"
 
 function Home(){
+
+    const [products, setProducts] = useState<Product[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const categories = [
         {
             title: 'Hombre',
@@ -32,7 +38,54 @@ function Home(){
         }    
     ]
 
-    const featuredProducts = products.filter((product) => product.activo).slice(0, 4)
+    useEffect(() => {
+        async function loadProducts(){
+            try{
+                setLoading(true)
+                const data = await getProducts()
+                setProducts(data)
+                setError(null)
+            } catch (error){
+                console.error(error)
+
+                setError('no se pudieron cargar los productos :(')
+            } finally{
+                setLoading(false)
+            }
+        }
+
+        loadProducts()
+    }, [])
+
+    const featuredIds = [1,2,3,4]
+    const featuredProducts = featuredIds.map((id) => products.find((product) => product.id === id))
+    .filter((product): product is Product => product !== undefined)
+
+
+    if (loading) {
+
+        return (
+            <main className="min-h-screen flex items-center justify-center">
+            <p>
+                Cargando productos...
+            </p>
+            </main>
+        )
+        }
+
+
+        if (error) {
+
+        return (
+            <main className="min-h-screen flex items-center justify-center">
+            <p>
+                {error}
+            </p>
+            </main>
+        )
+    }
+
+
     return(
         <main>
             <section className="bg-slate-950 text-white">
@@ -187,7 +240,7 @@ function Home(){
                                     name={product.nombre}
                                     category={product.categoria}
                                     price={product.precio}
-                                    image={product.urlImg}
+                                    image={product.urlImg ??'/placeholder-product.png'}
                                     available={available}
                                 />
                             )

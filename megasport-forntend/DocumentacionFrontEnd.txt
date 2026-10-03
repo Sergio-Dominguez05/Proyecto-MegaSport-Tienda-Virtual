@@ -1252,3 +1252,467 @@ Pendiente para las siguientes fases:
 - Validaciones y transacciones definitivas en servidor.
 
 FIN DE DOCUMENTACION DEL FRONTEND
+
+
+
+======================================================================
+ACTUALIZACION DE DOCUMENTACION - 2026-10-03
+CONEXION REAL DEL MODULO DE CATALOGO CON EL BACKEND
+======================================================================
+
+IMPORTANTE:
+La informacion anterior se conserva porque documenta el estado previo del
+frontend y la etapa de simulacion. Esta seccion agrega el estado actual sin
+eliminar ni reemplazar la documentacion historica.
+
+A partir de esta actualizacion, Home, Category y ProductDetail ya consumen
+datos reales provenientes del backend MegaSport. El backend obtiene esos
+datos desde PostgreSQL alojado en Supabase.
+
+Flujo actual:
+
+React / Frontend
+    -> catalogApi.ts
+    -> HTTP
+    -> Backend Express
+    -> Controller
+    -> Service
+    -> PostgreSQL / Supabase
+    -> JSON
+    -> React
+
+
+22. CONFIGURACION DE CONEXION DEL FRONTEND
+------------------------------------------
+
+Se agrego:
+
+megasport-frontend/.env
+
+con:
+
+VITE_API_URL=http://localhost:3000/api
+
+Notas importantes:
+- El .env debe estar dentro de la carpeta del frontend.
+- No debe colocarse solamente en la raiz general del repositorio.
+- Vite expone al codigo del frontend variables que comienzan con VITE_.
+- Si se crea o modifica .env se debe reiniciar npm run dev.
+- El .env sigue protegido por el .gitignore global.
+
+El frontend obtiene la URL mediante:
+
+import.meta.env.VITE_API_URL
+
+
+23. NUEVO SERVICIO src/services/catalogApi.ts
+---------------------------------------------
+
+catalogApi.ts centraliza la comunicacion HTTP del catalogo.
+
+Constante principal:
+
+API_URL = import.meta.env.VITE_API_URL
+
+Si VITE_API_URL no existe, se lanza un error para evitar trabajar con una
+direccion invalida.
+
+
+23.1 getCategories()
+
+Entrada:
+- Ninguna.
+
+Hace:
+
+GET /api/categorias
+
+Procesamiento:
+- fetch().
+- Comprueba response.ok.
+- Convierte response.json() a Category[].
+
+Salida:
+Promise<Category[]>
+
+
+23.2 getProducts(category?)
+
+Entrada:
+- category?: string
+
+Sin categoria:
+GET /api/productos
+
+Con categoria:
+GET /api/productos?categoria=hombre
+
+Usa encodeURIComponent(category) al construir el query string.
+
+Salida:
+Promise<Product[]>
+
+
+23.3 getProductById(id)
+
+Entrada:
+- id: number
+
+Hace:
+GET /api/productos/{id}
+
+Si recibe 404:
+- devuelve null.
+
+Si recibe otro error HTTP:
+- lanza una excepcion.
+
+Salida:
+Promise<Product | null>
+
+
+24. ACTUALIZACION DE src/types/catalog.ts
+-----------------------------------------
+
+Se agrego Category:
+
+- id: number
+- nombre: string
+- slug: string
+
+ProductVariant contiene:
+- idVariante
+- talla
+- activo
+- sku
+- stock
+- stockMinimo
+- color
+
+Product ahora coincide con la estructura real devuelta por el backend:
+
+- id: number
+- nombre: string
+- descripcion: string | null
+- precio: number
+- urlImg: string | null
+- activo: boolean
+- creadoEn: string
+- categoriaId: number
+- categoria: string
+- categoriaNombre: string
+- variantes: ProductVariant[]
+
+categoria:
+- slug usado por rutas, por ejemplo hombre o ninos.
+
+categoriaNombre:
+- nombre almacenado en la BD, por ejemplo Hombre o Niños.
+
+categoriaId:
+- number porque corresponde a categoria.id en PostgreSQL.
+
+urlImg permite null.
+
+
+25. ACTUALIZACION DE Home.tsx
+-----------------------------
+
+Home ya no obtiene productos desde data/products.ts.
+
+Nuevo estado:
+- products: Product[]
+- loading: boolean
+- error: string | null
+
+Al montar el componente se ejecuta:
+
+useEffect(..., [])
+
+Dentro se llama getProducts().
+
+Flujo:
+
+Home
+    -> getProducts()
+    -> GET /api/productos
+    -> backend
+    -> PostgreSQL
+    -> Product[]
+    -> setProducts(data)
+
+Los productos destacados siguen seleccionandose por ID:
+
+featuredIds = [1, 2, 3, 4]
+
+featuredProducts se obtiene buscando esos IDs dentro de products.
+
+Para cada producto se calcula:
+
+available =
+existe una variante activa con stock > 0
+
+Home maneja estados visuales de:
+- Cargando productos.
+- Error al obtener productos.
+
+Las tarjetas de categorias siguen siendo datos locales de presentacion,
+porque incluyen subtitulo, imagen y link.
+
+
+26. ACTUALIZACION DE Category.tsx
+---------------------------------
+
+Category obtiene:
+
+category
+
+mediante useParams().
+
+Estado:
+- products: Product[]
+- loading
+- error
+
+Al cambiar category se ejecuta:
+
+useEffect(..., [category])
+
+y llama:
+
+getProducts(category)
+
+Ejemplo:
+
+/categoria/hombre
+    -> category = "hombre"
+    -> GET /api/productos?categoria=hombre
+
+El filtrado ya no se realiza con products.filter() en React.
+El backend/PostgreSQL devuelve directamente los productos de la categoria.
+
+Por esto la pagina utiliza:
+- products.length
+- products.map(...)
+
+categoryNames se conserva para mostrar nombres legibles:
+
+hombre  -> Hombre
+mujer   -> Mujer
+ninos   -> Niños
+zapatos -> Zapatos
+
+
+27. ACTUALIZACION DE ProductDetail.tsx
+--------------------------------------
+
+ProductDetail ya no busca el producto dentro de data/products.ts.
+
+Entrada:
+- :id mediante useParams().
+
+Estado:
+- product: Product | null
+- loading
+- error
+
+Al cambiar id se ejecuta:
+
+useEffect(..., [id])
+
+Flujo:
+
+/producto/4
+    -> id = "4"
+    -> Number(id)
+    -> validacion
+    -> getProductById(4)
+    -> GET /api/productos/4
+    -> backend
+    -> PostgreSQL
+    -> Product
+    -> setProduct(data)
+
+Validacion:
+- Debe ser entero.
+- Debe ser mayor que 0.
+
+Si el backend devuelve 404:
+- catalogApi devuelve null.
+- ProductDetail muestra "Producto no encontrado".
+
+La logica existente se conserva:
+- colores unicos.
+- tallas segun color.
+- selectedVariant.
+- cantidad maxima segun stock.
+- addItem() al carrito.
+
+Para imagen nula se utiliza:
+
+product.urlImg ?? '/placeholder-product.png'
+
+
+28. MANEJO ASINCRONO
+--------------------
+
+Las tres paginas conectadas usan:
+
+useEffect()
+    -> funcion async interna
+    -> try
+    -> catch
+    -> finally
+
+try:
+- activa loading.
+- ejecuta la llamada HTTP.
+- guarda datos.
+- limpia error.
+
+catch:
+- registra el error.
+- guarda un mensaje visible.
+
+finally:
+- desactiva loading.
+
+Dependencias:
+- Home: []
+- Category: [category]
+- ProductDetail: [id]
+
+
+29. ESTADO ACTUAL DE data/products.ts
+-------------------------------------
+
+products.ts todavia NO debe eliminarse completamente.
+
+Ya NO es la fuente para:
+- Home
+- Category
+- ProductDetail
+
+Sin embargo todavia se usa en otras partes para reconstruir informacion de
+productos y variantes, especialmente:
+- Cart
+- Checkout
+- OrderConfirmation
+
+Por lo tanto se conserva temporalmente hasta migrar esas pantallas.
+
+Estado actual:
+
+Home                -> backend real
+Category            -> backend real
+ProductDetail       -> backend real
+Cart                -> todavia depende de datos locales
+Checkout            -> todavia usa estado/localStorage
+Courier             -> servicio simulado
+Pago                -> servicio simulado
+Orden final         -> simulacion/localStorage
+
+
+30. CORS Y SEPARACION DE RESPONSABILIDADES
+------------------------------------------
+
+Durante desarrollo:
+
+Frontend:
+http://localhost:5173
+
+Backend:
+http://localhost:3000
+
+El backend permite estas solicitudes usando CORS.
+
+El frontend conoce:
+VITE_API_URL
+
+El backend conoce:
+DATABASE_URL
+
+El navegador NO conoce DATABASE_URL ni se conecta directamente a PostgreSQL.
+
+
+31. PRIMER FLUJO REAL COMPLETO
+------------------------------
+
+Ejemplo categoria Hombre:
+
+/categoria/hombre
+    -> Category.tsx
+    -> getProducts("hombre")
+    -> catalogApi.ts
+    -> GET /api/productos?categoria=hombre
+    -> Express
+    -> productController
+    -> catalogService
+    -> PostgreSQL
+    -> JSON
+    -> setProducts()
+    -> ProductCard
+
+Ejemplo detalle:
+
+/producto/1
+    -> ProductDetail.tsx
+    -> getProductById(1)
+    -> GET /api/productos/1
+    -> backend
+    -> PostgreSQL
+    -> producto + categoria + variantes
+    -> JSON
+    -> interfaz
+
+
+32. PRUEBAS REALIZADAS
+----------------------
+
+Se comprobo:
+- Home cargando productos reales.
+- Category consultando por categoria.
+- ProductDetail consultando por ID.
+- Variantes y stock reales recibidos desde la BD.
+- Disponibilidad calculada con variantes reales.
+- Comunicacion React -> Express -> PostgreSQL.
+- Los cambios de datos en la BD pueden reflejarse en el frontend al recargar.
+
+Problema encontrado durante integracion:
+
+El .env del frontend se habia colocado inicialmente en la raiz general del
+repositorio.
+
+Como Vite busca las variables del proyecto frontend, VITE_API_URL quedaba
+undefined y catalogApi.ts lanzaba un error antes de renderizar Home. El
+resultado era una pantalla completamente blanca.
+
+Solucion:
+- Colocar el archivo en megasport-frontend/.env
+- Reiniciar Vite.
+
+
+33. NUEVO ESTADO DEL FRONTEND
+-----------------------------
+
+Implementado con backend real:
+- Catalogo de productos.
+- Categorias mediante API.
+- Variantes y stock desde PostgreSQL.
+- Home.
+- Category.
+- ProductDetail.
+
+Todavia pendiente de migracion:
+- Carrito persistente.
+- articulo_en_carrito.
+- Usuarios y autenticacion.
+- Checkout persistente.
+- Orden y Detalle_orden reales.
+- Decremento transaccional de stock.
+- Courier real.
+- Tarjeta real.
+- CRUD administrativo.
+- Eliminacion final de los datos y servicios simulados restantes.
+
+FIN DE ACTUALIZACION 2026-10-03

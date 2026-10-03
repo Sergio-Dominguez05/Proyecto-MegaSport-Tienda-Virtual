@@ -1,21 +1,29 @@
+export type Category = {
+    id: number
+    nombre: string
+    slug: string
+}
+
 export type ProductVariant = {
     idVariante: number
     talla: string
-    color: string
+    activo: boolean
     sku: string
     stock: number
     stockMinimo: number
-    activo: boolean
+    color: string
 }
 
 export type Product = {
     id: number
     nombre: string
-    descripcion: string
+    descripcion: string | null
     precio: number
-    urlImg: string
+    urlImg: string | null
     activo: boolean
     creadoEn: string
+    categoriaId: number
     categoria: string
+    categoriaNombre: string
     variantes: ProductVariant[]
 }

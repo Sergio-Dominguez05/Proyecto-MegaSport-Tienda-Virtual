@@ -1,24 +1,59 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { products } from '../data/products'
 import { useCart } from '../context/CartContext'
+import { useEffect } from 'react'
+import { getProductById } from '../services/catalogApi'
+import type { Product } from '../types/catalog'
 
 {/*La version de prueba de esta pagina fue hecha en su totalidad con IA para fines de simulacion ya que todavia no cree el carrito
     La implementacion funcional con el BackEnd y Posteriormente la base de datos y con el carrito creado se va a hacer despues
     y descartara muchos de los cambios actuales de la IA pero el diseño general se conservara*/}
+  
+{/*Nota de despues de 2 semanas: ya se hicieron los cambios para implementar el de forma real el backend y ya se descartaron
+  los cambios hechos por la IA*/}
 
 
 function ProductDetail() {
 
   const { id } = useParams()
+  const [product, setProduct] = useState<Product | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+
+    async function loadProduct() {
+
+      const productId = Number(id)
+      if (!Number.isInteger(productId) || productId <= 0) {
+        setError('Producto inválido')
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const data = await getProductById(productId)
+        setProduct(data)
+        setError(null)
+
+      } catch (error) {
+
+        console.error(error)
+        setError('No se pudo cargar el producto')
+
+      } finally {
+
+        setLoading(false)
+      }
+    }
+
+
+    loadProduct()
+
+  }, [id])
 
   const { addItem } = useCart()
-
-  const product = products.find(
-    (product) =>
-      product.id === Number(id) &&
-      product.activo
-  )
 
 
   const [selectedColor, setSelectedColor] = useState('')
@@ -26,30 +61,31 @@ function ProductDetail() {
   const [quantity, setQuantity] = useState(1)
 
 
-  // Si el producto no existe
-  if (!product) {
+  if (loading) {
+
     return (
-      <main className="mx-auto max-w-7xl px-6 py-20">
+      <main>
+        Cargando producto...
+      </main>
+    )
+  }
 
-        <div className="rounded-2xl border border-gray-200 p-12 text-center">
 
-          <h1 className="text-3xl font-bold text-slate-900">
-            Producto no encontrado
-          </h1>
+  if (error) {
 
-          <p className="mt-3 text-gray-500">
-            El producto que buscas no existe o ya no está disponible.
-          </p>
+    return (
+      <main>
+        {error}
+      </main>
+    )
+  }
 
-          <Link
-            to="/"
-            className="mt-8 inline-block rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white transition hover:bg-slate-700"
-          >
-            Volver al inicio
-          </Link>
 
-        </div>
+  if (!product) {
 
+    return (
+      <main>
+        Producto no encontrado
       </main>
     )
   }
@@ -183,7 +219,7 @@ function ProductDetail() {
             <div className="overflow-hidden rounded-3xl bg-gray-100">
 
               <img
-                src={product.urlImg}
+                src={product.urlImg ??'/placeholder-product.png'}
                 alt={product.nombre}
                 className="aspect-square h-full w-full object-cover"
               />

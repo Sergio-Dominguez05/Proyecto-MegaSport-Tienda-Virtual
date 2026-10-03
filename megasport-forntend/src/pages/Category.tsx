@@ -1,10 +1,43 @@
 import { useParams } from "react-router-dom"
 import ProductCard from "../components/ProductCard"
-import { products } from "../data/products"
+import { useEffect } from "react"
+import { useState } from "react"
+import { getProducts } from "../services/catalogApi"
+import type { Product } from "../types/catalog"
 
 function Category (){
 
     const { category } = useParams()
+
+    const [products, setProducts] = useState<Product[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+
+    useEffect(() =>{
+
+        async function loadProducts() {
+            
+            if(!category){
+                return
+            }
+
+            try{
+                setLoading(true)
+                const data = await getProducts(category)
+                setProducts(data)
+                setError(null)
+            } catch (error){
+                console.error(error)
+                setError('No se pudieron cargar los porductos :(')
+            }finally{
+                setLoading(false)
+            }
+        }
+
+        loadProducts()
+    }, [category])
+
     const categoryNames: Record<string, string> = {
         hombre: 'Hombre',
         mujer: 'Mujer',
@@ -14,11 +47,28 @@ function Category (){
 
     const title = categoryNames[category ?? ''] ?? 'Categoria'
 
-    const filteredProducts = products.filter(
-        (product) =>
-            product.categoria === category &&
-            product.activo
+    if (loading) {
+
+    return (
+        <main className="min-h-screen flex items-center justify-center">
+        <p>
+            Cargando productos...
+        </p>
+        </main>
     )
+    }
+
+
+    if (error) {
+
+    return (
+        <main className="min-h-screen flex items-center justify-center">
+        <p>
+            {error}
+        </p>
+        </main>
+    )
+    }
 
     return(
         <main>
@@ -54,16 +104,16 @@ function Category (){
                         </p>
 
                         <p className="mt-1 text-xl font-semibold text-slate-900">
-                        {filteredProducts.length}
+                        {products.length}
                         </p>
 
                     </div>
 
                 </div>
 
-                {filteredProducts.length > 0 ? (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-">
-                        {filteredProducts.map((product) => {
+                {products.length > 0 ? (
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {products.map((product) => {
                             const available = product.variantes.some(
                                 (variant) =>
                                     variant.activo &&
@@ -77,7 +127,7 @@ function Category (){
                                     name={product.nombre}
                                     category={product.categoria}
                                     price={product.precio}
-                                    image={product.urlImg}
+                                    image={product.urlImg ??'/placeholder-product.png'}
                                     available={available} 
                                 />
                             )

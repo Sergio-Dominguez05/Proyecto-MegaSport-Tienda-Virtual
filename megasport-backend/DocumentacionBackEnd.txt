@@ -15,3 +15,562 @@ Las carpetas que componen src son:
 - Config es para la configuracion general (en especial la de la base de datos)
 
 - types son para interfaces TypeScript compartidas
+
+
+
+======================================================================
+ACTUALIZACION DE DOCUMENTACION - 2026-10-03
+BACKEND FUNCIONAL + SUPABASE + PRIMER MODULO REAL DE CATALOGO
+======================================================================
+
+La informacion anterior se conserva. Esta seccion agrega todo lo implementado
+desde la creacion inicial del backend hasta la conexion real del catalogo con
+el frontend.
+
+
+1. TECNOLOGIAS ACTUALES DEL BACKEND
+-----------------------------------
+
+El backend utiliza:
+- Node.js
+- TypeScript
+- Express
+- pg
+- cors
+- dotenv
+- tsx para desarrollo
+- PostgreSQL alojado en Supabase
+
+Dependencias principales:
+- express
+- pg
+- cors
+- dotenv
+
+Dependencias de desarrollo:
+- typescript
+- tsx
+- @types/node
+- @types/express
+- @types/cors
+- @types/pg
+
+
+2. ESTRUCTURA ACTUAL
+--------------------
+
+megasport-backend/
+|
+|-- .env
+|-- package.json
+|-- tsconfig.json
+|-- src/
+    |-- config/
+    |   |-- database.ts
+    |-- controllers/
+    |   |-- categoryController.ts
+    |   |-- productController.ts
+    |-- routes/
+    |   |-- categoryRoutes.ts
+    |   |-- productRoutes.ts
+    |-- services/
+    |   |-- catalogService.ts
+    |-- types/
+    |   |-- catalog.ts
+    |-- server.ts
+
+
+3. SCRIPTS DEL BACKEND
+----------------------
+
+npm run dev
+- Ejecuta tsx watch src/server.ts.
+- Inicia el backend en desarrollo y reinicia al detectar cambios.
+
+npm run build
+- Compila TypeScript y genera JavaScript en dist.
+
+npm start
+- Ejecuta la version compilada desde dist.
+
+
+4. VARIABLES DE ENTORNO
+-----------------------
+
+El backend usa:
+
+megasport-backend/.env
+
+Variables actuales:
+
+PORT=3000
+DATABASE_URL=...
+
+PORT define el puerto de Express:
+http://localhost:3000
+
+DATABASE_URL contiene la cadena privada de conexion a PostgreSQL/Supabase.
+No debe exponerse al frontend ni subirse al repositorio.
+
+El .gitignore global de la raiz ya ignora .env y node_modules.
+
+
+5. CONEXION CON SUPABASE / POSTGRESQL
+-------------------------------------
+
+Inicialmente se intento usar Direct connection de Supabase.
+
+En la red de desarrollo se produjo:
+
+getaddrinfo ENOTFOUND
+
+La conexion Direct usa IPv6 por defecto. La solucion aplicada fue cambiar a:
+
+Session pooler
+
+manteniendo el tipo URI y reemplazando DATABASE_URL por la cadena entregada
+por Supabase para ese metodo.
+
+La conexion actual funciona correctamente mediante pg.
+
+
+6. src/config/database.ts
+-------------------------
+
+database.ts centraliza la conexion a PostgreSQL.
+
+Usa pg.Pool para administrar y reutilizar conexiones.
+
+Configuracion conceptual:
+
+new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+})
+
+Los servicios pueden ejecutar consultas con:
+
+pool.query(...)
+
+
+7. src/server.ts
+----------------
+
+server.ts es el punto de entrada del backend.
+
+Responsabilidades actuales:
+- Crear la aplicacion Express.
+- Leer PORT.
+- Activar express.json().
+- Activar CORS.
+- Registrar rutas.
+- Escuchar en el puerto configurado.
+
+Endpoints de prueba creados durante la configuracion:
+
+GET /api/health
+- Comprueba que Express funciona.
+
+GET /api/db-test
+- Ejecuta una consulta simple a PostgreSQL.
+- Comprueba la cadena Express -> pg -> Supabase.
+
+Tambien se realizo exitosamente un SELECT real sobre producto.
+
+
+8. ARQUITECTURA DEL MODULO DE CATALOGO
+--------------------------------------
+
+Route
+    -> Controller
+    -> Service
+    -> PostgreSQL
+
+Route:
+- Relaciona una URL con una funcion del controller.
+
+Controller:
+- Lee parametros y query strings.
+- Valida entradas.
+- Decide el status HTTP.
+- Llama al service.
+
+Service:
+- Contiene SQL.
+- Consulta PostgreSQL.
+- Transforma filas de la BD a la estructura de la API.
+
+Database:
+- Administra la conexion mediante Pool.
+
+
+9. ENDPOINTS REALES IMPLEMENTADOS
+---------------------------------
+
+GET /api/categorias
+- Devuelve todas las categorias con id, nombre y slug.
+
+GET /api/productos
+- Devuelve productos activos con categoria y variantes activas.
+
+GET /api/productos?categoria=hombre
+- Filtra productos por categoria.
+
+GET /api/productos/:id
+- Devuelve un producto activo especifico.
+- 404 si no existe.
+- 400 si el ID es invalido.
+
+
+10. src/types/catalog.ts
+------------------------
+
+Category:
+- id: number
+- nombre: string
+- slug: string
+
+ProductVariant:
+- idVariante
+- talla
+- activo
+- sku
+- stock
+- stockMinimo
+- color
+
+Product:
+- id
+- nombre
+- descripcion
+- precio
+- urlImg
+- activo
+- creadoEn
+- categoriaId
+- categoria
+- categoriaNombre
+- variantes
+
+Product representa la forma final enviada al frontend, no una fila directa
+de una sola tabla.
+
+
+11. src/services/catalogService.ts
+----------------------------------
+
+11.1 createSlug(value)
+
+Convierte nombres de categoria a slugs:
+
+Hombre  -> hombre
+Mujer   -> mujer
+Niños   -> ninos
+Zapatos -> zapatos
+
+Usa normalize('NFD'), elimina diacriticos, convierte a minusculas, aplica
+trim() y reemplaza espacios por guiones.
+
+
+11.2 getCategories()
+
+Ejecuta:
+
+SELECT id, nombre
+FROM categoria
+ORDER BY id;
+
+Luego agrega slug con createSlug().
+
+Salida:
+Promise<Category[]>
+
+
+11.3 ProductDatabaseRow
+
+Tipo interno usado para representar cada fila devuelta por SQL antes de
+mapearla a Product.
+
+precio se recibe como string porque pg puede devolver NUMERIC/DECIMAL de esa
+forma para evitar perdida de precision.
+
+
+11.4 mapProduct(row)
+
+Transforma ProductDatabaseRow a Product.
+
+Procesamiento principal:
+- Number(row.precio)
+- createSlug(row.categoriaNombre)
+- variantes ?? []
+
+
+11.5 getProducts(categoryName?)
+
+Usa:
+- producto
+- categoria
+- variante_producto
+
+INNER JOIN categoria:
+- Cada producto debe pertenecer a una categoria.
+
+LEFT JOIN variante_producto:
+- Permite mantener el producto aunque no tenga variantes activas.
+
+La condicion v.activo = TRUE se coloca dentro del ON del LEFT JOIN para
+incluir solo variantes activas sin eliminar productos sin variantes.
+
+p.activo = TRUE:
+- Solo muestra productos activos.
+
+Filtro opcional:
+
+($1::TEXT IS NULL OR c.nombre = $1)
+
+Si $1 es NULL no filtra categoria.
+Si $1 es "Hombre", solo devuelve esa categoria.
+
+Se usan parametros $1 en vez de concatenar valores directamente al SQL.
+
+
+12. CONSTRUCCION DE VARIANTES EN JSON
+-------------------------------------
+
+JSON_BUILD_OBJECT()
+- Convierte cada fila de variante en un objeto JSON.
+
+JSON_AGG()
+- Junta varias variantes en un arreglo.
+
+FILTER (WHERE v.id_variante IS NOT NULL)
+- Evita generar una variante falsa llena de NULL.
+
+COALESCE(..., '[]'::JSON)
+- Devuelve [] cuando no existen variantes.
+
+
+13. GROUP BY
+------------
+
+Como JSON_AGG es una funcion de agregacion, la consulta agrupa por las
+columnas de producto y categoria.
+
+Conceptualmente:
+
+Producto 1 | Variante 1
+Producto 1 | Variante 2
+Producto 1 | Variante 3
+
+se convierte en:
+
+Producto 1 | [Variante 1, Variante 2, Variante 3]
+
+
+14. ALIASES Y FORMATO
+---------------------
+
+Se usan aliases como:
+
+p.url_img AS "urlImg"
+c.id AS "categoriaId"
+c.nombre AS "categoriaNombre"
+
+Las comillas conservan camelCase exactamente.
+
+TO_CHAR() transforma creado_en a texto con formato:
+
+YYYY-MM-DDTHH24:MI:SS
+
+
+15. getProductById(id)
+----------------------
+
+La consulta es similar a getProducts(), pero usa:
+
+WHERE
+    p.id = $1
+    AND p.activo = TRUE
+
+Recibe [id] como parametro.
+
+Si result.rows.length === 0:
+- devuelve null.
+
+Si existe:
+- toma result.rows[0].
+- ejecuta mapProduct().
+- devuelve Product.
+
+
+16. CONTROLLERS
+---------------
+
+categoryController.ts
+
+listCategories:
+- Recibe GET /api/categorias.
+- Llama getCategories().
+- Devuelve JSON.
+- Responde 500 ante un error inesperado.
+
+
+productController.ts
+
+listProducts:
+- Lee req.query.categoria.
+- Busca el slug dentro de las categorias.
+- Devuelve 400 si la categoria no existe.
+- Convierte slug al nombre real de la BD.
+- Llama getProducts(categoryName).
+- Devuelve Product[].
+
+Ejemplo:
+
+ninos -> Niños -> getProducts("Niños")
+
+getProduct:
+- Lee req.params.id.
+- Lo convierte con Number().
+- Valida entero mayor que 0.
+- Llama getProductById(id).
+
+Respuestas:
+- 400 ID invalido.
+- 404 producto inexistente.
+- 200 producto encontrado.
+- 500 error inesperado.
+
+
+17. ROUTES
+----------
+
+categoryRoutes.ts:
+
+router.get('/', listCategories)
+
+Montado en:
+/api/categorias
+
+productRoutes.ts:
+
+router.get('/', listProducts)
+router.get('/:id', getProduct)
+
+Montado en:
+/api/productos
+
+
+18. CONEXION CON EL FRONTEND
+----------------------------
+
+El frontend usa:
+
+VITE_API_URL=http://localhost:3000/api
+
+y:
+
+src/services/catalogApi.ts
+
+Flujo:
+
+React
+    -> fetch()
+    -> Express
+    -> Controller
+    -> Service
+    -> pool.query()
+    -> PostgreSQL / Supabase
+    -> JSON
+    -> React
+
+Actualmente el backend alimenta con datos reales a:
+- Home
+- Category
+- ProductDetail
+
+
+19. CORS
+--------
+
+El backend usa:
+
+app.use(cors())
+
+Durante desarrollo esto permite que:
+
+http://localhost:5173
+
+haga solicitudes a:
+
+http://localhost:3000
+
+
+20. PRUEBAS REALIZADAS
+----------------------
+
+Se comprobo correctamente:
+- Inicio de Express.
+- GET /api/health.
+- Conexion PostgreSQL.
+- GET /api/db-test.
+- SELECT desde producto.
+- GET /api/categorias.
+- GET /api/productos.
+- GET /api/productos?categoria=hombre.
+- GET /api/productos/:id.
+- 404 para producto inexistente.
+- Validacion de ID.
+- Integracion React -> Express -> PostgreSQL.
+
+
+21. ERRORES IMPORTANTES CORREGIDOS
+----------------------------------
+
+Durante el desarrollo se corrigieron:
+- Direct connection -> Session pooler por el problema de conectividad.
+- "urlimg" -> "urlImg".
+- v.stockMinimo -> v.stock_minimo.
+- 1$ -> $1.
+- p.description -> p.descripcion.
+- WHERE p.id = $1 faltante en getProductById.
+- Ruta de detalle cambiada a '/:id'.
+- Se mantuvieron consultas parametrizadas con $1.
+
+
+22. ESTADO ACTUAL DEL BACKEND
+-----------------------------
+
+Implementado:
+- Express.
+- TypeScript.
+- Conexion real con Supabase/PostgreSQL.
+- Pool de conexiones.
+- CORS.
+- Variables de entorno.
+- Endpoints de prueba.
+- Modulo real de categorias.
+- Modulo real de productos.
+- Variantes incluidas en los productos.
+- Filtrado por categoria.
+- Consulta por ID.
+- Conexion real con Home, Category y ProductDetail.
+
+Pendiente:
+- Usuarios.
+- Autenticacion.
+- Roles.
+- CRUD administrativo.
+- Carrito persistente.
+- articulo_en_carrito.
+- Checkout persistente.
+- Orden.
+- Detalle_orden.
+- Transacciones de inventario.
+- Integracion con couriers.
+- Integracion con proveedores de tarjeta.
+- Validaciones finales de seguridad.
+
+FIN DE ACTUALIZACION 2026-10-03
