@@ -1,67 +1,30 @@
-import { NavLink } from "react-router-dom";
-import { useCart } from "../context/CartContext";
-
-function Navbar(){
-
-    const {totalItems} = useCart()
-    return(
-        <header className="border-b border-gray-200 bg-white">
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-                <NavLink
-                    to="/"
-                    className="text-2xl font-bold tracking-wide text-slate-900"
-                >    
-                    MEGASPORT
-                </NavLink>
-
-
-                <nav className="flex items-center gap-8">
-                    <NavLink
-                        to="/"
-                        className="text-sm font-medium text-gray-700 hover:text-black"
-                    >
-                        Inicio
-                    </NavLink>
-
-                    <NavLink
-                        to="/categoria/hombre"
-                        className="text-sm font-medium text-gray-700 hover:text-black"
-                    >
-                        Hombre
-                    </NavLink>
-
-                    <NavLink
-                        to="/categoria/mujer"
-                        className="text-sm font-medium text-gray-700 hover:text-black"
-                    >
-                        Mujer
-                    </NavLink>
-
-                    <NavLink
-                        to="/categoria/ninos"
-                        className="text-sm font-medium text-gray-700 hover:text-black"
-                    >
-                        Niños
-                    </NavLink>
-
-                    <NavLink
-                        to="/categoria/zapatos"
-                        className="text-sm font-medium text-gray-700 hover:text-black"
-                    >
-                        Zapatos
-                    </NavLink>
-
-                    <NavLink
-                        to="/carrito"
-                        className="text-sm font-medium text-gray-700 hover:text-black"
-                    >
-                        Carrito ({totalItems})
-                    </NavLink>
-
-                </nav>
-                
-            </div>
-        </header>
-    )
+import {useEffect,useState} from 'react'
+import {NavLink} from 'react-router-dom'
+import {useAuth} from '../hooks/useAuth'
+import {useCart} from '../context/CartContext'
+import {getCategories} from '../services/catalogApi'
+import type {Category} from '../types/catalog'
+export default function Navbar(){
+    const {user,logout}=useAuth()
+    const {totalItems}=useCart()
+    const [categories,setCategories]=useState<Category[]>([])
+    useEffect(()=>{
+        const load=()=>{void getCategories().then(setCategories).catch(()=>{})}
+        load();window.addEventListener('focus',load)
+        return()=>window.removeEventListener('focus',load)
+    },[])
+    return <header className="border-b bg-white">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-6 py-4">
+            <NavLink to="/" className="text-2xl font-bold">MEGASPORT</NavLink>
+            <nav className="flex flex-wrap items-center gap-4 text-sm">
+                <NavLink to="/">Inicio</NavLink>
+                {categories.map(c=><NavLink key={c.id} to={`/categoria/${c.slug}`}>{c.nombre}</NavLink>)}
+                <NavLink to="/carrito">Carrito ({totalItems})</NavLink>
+                {user?<><NavLink to="/pedidos">Mis pedidos</NavLink>
+                    {user.rol==='ADMINISTRADOR'&&<NavLink to="/admin">Administración</NavLink>}
+                    <span>{user.nombre}</span><button onClick={logout}>Salir</button>
+                </>:<NavLink to="/login" className="rounded bg-slate-950 px-4 py-2 text-white">Ingresar</NavLink>}
+            </nav>
+        </div>
+    </header>
 }
-export default Navbar

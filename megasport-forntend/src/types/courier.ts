@@ -34,6 +34,7 @@ export const SHIPPING_STATUS_LABELS: Record<ShippingStatus, string> = {
 
 export type ShipmentRequest = {
   idOrdenTemporal: string
+  destinatario: string
   codigoDestino: string
   direccionEnvio: string
 }

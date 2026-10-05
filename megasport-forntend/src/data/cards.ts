@@ -6,7 +6,7 @@ import type { CardProvider } from '../types/card'
 
 export const cardProviders: CardProvider[] = [
   {
-    identificador: 'TARJ-VISA',
+    identificador: 'VISA',
     activo: true,
     nombre: 'Visa',
     host: '192.168.60.11',
@@ -14,7 +14,7 @@ export const cardProviders: CardProvider[] = [
   },
 
   {
-    identificador: 'TARJ-MASTER',
+    identificador: 'MASTERCARD',
     activo: true,
     nombre: 'Mastercard',
     host: '192.168.60.12',
@@ -22,10 +22,18 @@ export const cardProviders: CardProvider[] = [
   },
 
   {
-    identificador: 'TARJ-CREDO',
+    identificador: 'AMERICANEXPRESS',
+    activo: true,
+    nombre: 'American Express',
+    host: '192.168.60.13',
+    scriptAutorizacion: '/autorizacion',
+  },
+
+  {
+    identificador: 'CREDOMATIC',
     activo: true,
     nombre: 'Credomatic',
-    host: '192.168.60.13',
+    host: '192.168.60.14',
     scriptAutorizacion: '/autorizacion',
   },
 ]
@@ -33,8 +41,8 @@ export const cardProviders: CardProvider[] = [
 {/*Esto de aqui si obviamente no lo hizo la IA y son los prefijos de los otros grupos para identificar al proveedor */}
 
 export const cardPrefixMap: Record<string, string> = {
-  '4': 'TARJ-VISA',
-  '5': 'TARJ-MASTER',
-  '3': 'TARJ-AMEX',
-  '2': 'TARJ-CREDO'
+  '4': 'VISA',
+  '5': 'MASTERCARD',
+  '3': 'AMERICANEXPRESS',
+  '2': 'CREDOMATIC'
 }

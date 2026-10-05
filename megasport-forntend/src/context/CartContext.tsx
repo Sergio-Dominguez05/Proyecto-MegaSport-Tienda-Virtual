@@ -1,177 +1,74 @@
-import { createContext } from "react";
-import { useContext } from "react";
-import { useEffect } from "react";
-import { useMemo } from "react";
-import { useState } from "react";
-import type { ReactNode } from "react";
-import type { CartItem } from "../types/cart";
-
-type CartContextType = {
-    items: CartItem[]
-
-    addItem: (
-        idVariante: number,
-        cantidad: number,
-        stockDisponible: number
-    ) => void
-
-    updateQuantity: (
-        idVariante: number,
-        nuevaCantidad: number,
-        stockDisponible: number
-    ) => void
-
-    removeItem: (
-        idVariante: number
-    ) => void
-
-    clearCart: (
-
-    ) => void
-
-    totalItems: number
+/* eslint-disable react-refresh/only-export-components */
+import {createContext,useCallback,useContext,useEffect,useRef,useState} from 'react'
+import type {ReactNode} from 'react'
+import {useAuth} from '../hooks/useAuth'
+import type {CartItem} from '../types/cart'
+import {api} from '../services/api'
+type Value={
+    items:CartItem[];totalItems:number;loading:boolean;error:string|null
+    addItem:(id:number,qty:number,stock:number)=>Promise<void>
+    updateQuantity:(id:number,qty:number,stock:number)=>Promise<void>
+    removeItem:(id:number)=>Promise<void>;clearCart:()=>Promise<void>;refreshCart:()=>Promise<void>
 }
-
-
-const CartContext = createContext<CartContextType | undefined>(
-    undefined
-)
-
-type CartProviderProps = {
-    children: ReactNode
+type Remote={items:CartItem[]}
+const Context=createContext<Value|null>(null)
+const GUEST='megasport-cart'
+function guestItems():CartItem[]{
+    try{
+        const data:unknown=JSON.parse(localStorage.getItem(GUEST)??'[]')
+        return Array.isArray(data)?data.filter(i=>Number.isInteger(i?.idVariante)&&i.idVariante>0&&Number.isInteger(i?.cantidad)&&i.cantidad>0):[]
+    }catch{return[]}
 }
-
-function CartProvider({ children }: CartProviderProps){
-    const [items, setItems] = useState<CartItem[]>(() => {
-        const savedCart = localStorage.getItem('megasport-cart')
-        if (!savedCart) {
-            return []
-        }
-
-        try {
-            return JSON.parse(savedCart)
-        } catch {
-            return[]
-        }
-    })
-
-    useEffect(() => {
-        localStorage.setItem(
-            'megasport-cart',
-            JSON.stringify(items)
-        )
-    }, [items])
-
-    const addItem = (
-        idVariante: number,
-        cantidad: number,
-        stockDisponible: number
-    ) => {
-        if (cantidad <= 0 || stockDisponible <= 0){
-            return
-        }
-
-        setItems((currentItems) => {
-            const existingItem = currentItems.find(
-                (item) => item.idVariante === idVariante
-            )
-
-            if (existingItem){
-                return currentItems.map((item) => {
-                    if (item.idVariante !== idVariante){
-                        return item
-                    }
-
-                    return{
-                        ...item,
-                        cantidad:Math.min(
-                            item.cantidad + cantidad,
-                            stockDisponible
-                        ),
-                    }
-                })
+export function CartProvider({children}:{children:ReactNode}){
+    const {token,loading}=useAuth()
+    return <CartSession key={token??'guest'} authenticated={Boolean(token)} authLoading={loading}>{children}</CartSession>
+}
+function CartSession({children,authenticated,authLoading}:{children:ReactNode;authenticated:boolean;authLoading:boolean}){
+    const [items,setItems]=useState<CartItem[]>(()=>authenticated?[]:guestItems())
+    const [loading,setLoading]=useState(authenticated)
+    const [error,setError]=useState<string|null>(null)
+    const queue=useRef<Promise<void>>(Promise.resolve())
+    const refreshCart=useCallback(async()=>{
+        if(authenticated){const cart=await api<Remote>('/carrito');setItems(cart.items)}
+    },[authenticated])
+    useEffect(()=>{
+        if(!authenticated) return
+        let active=true
+        async function load(){
+            let mergeError:string|null=null
+            const guest=guestItems()
+            if(guest.length){
+                try{await api('/carrito/fusionar','POST',{items:guest});localStorage.removeItem(GUEST)}
+                catch(e){mergeError=e instanceof Error?e.message:'No se pudo importar el carrito invitado'}
             }
-
-            return [
-                ...currentItems,
-                {
-                    idVariante,
-                    cantidad: Math.min(
-                        cantidad,
-                        stockDisponible
-                    ),
-                },
-            ]
+            try{const cart=await api<Remote>('/carrito');if(active){setItems(cart.items);setError(mergeError)}}
+            catch(e){if(active)setError(e instanceof Error?e.message:'Error de conexión')}
+            finally{if(active)setLoading(false)}
+        }
+        const pending=load()
+        queue.current=pending
+        return()=>{active=false}
+    },[authenticated])
+    useEffect(()=>{if(!authenticated)localStorage.setItem(GUEST,JSON.stringify(items))},[items,authenticated])
+    function mutate(path:string,method:string,body:unknown,local:(items:CartItem[])=>CartItem[]){
+        if(!authenticated){setItems(local);return Promise.resolve()}
+        const next=queue.current.catch(()=>{}).then(async()=>{
+            setError(null)
+            try{const cart=await api<Remote>(path,method,body);setItems(cart.items)}
+            catch(e){setError(e instanceof Error?e.message:'No se pudo actualizar');throw e}
         })
+        queue.current=next
+        return next
     }
-    const updateQuantity = (
-        idVariante: number,
-        nuevaCantidad: number,
-        stockDisponible: number
-    ) => {
-        if (nuevaCantidad <= 0) {
-            removeItem(idVariante)
-            return
-        }
-        setItems((currentItems) => currentItems.map((item) => {
-            if (item.idVariante !== idVariante){
-                return item
-            }
-
-            return{
-                ...item,
-                cantidad: Math.min(
-                    nuevaCantidad,
-                    stockDisponible
-                ),
-            }
-        }))
-    }
-
-    const removeItem = (idVariante: number) => {
-        setItems((currentItems) => currentItems.filter((item) => item.idVariante !== idVariante))
-    }
-
-    const clearCart = () => {
-        setItems([])
-    }
-
-    const totalItems = useMemo(() => {
-        return items.reduce(
-            (total, item) => total + item.cantidad, 0
-        )
-    }, [items])
-
-    return (
-
-        <CartContext.Provider
-            value={{
-                items,
-                addItem,
-                updateQuantity,
-                removeItem,
-                clearCart,
-                totalItems,
-            }}>
-
-                {children}
-
-        </CartContext.Provider>
-    )
+    function removeItem(id:number){return mutate(`/carrito/articulos/${id}`,'DELETE',undefined,list=>list.filter(i=>i.idVariante!==id))}
+    return <Context.Provider value={{
+        items,totalItems:items.reduce((n,i)=>n+i.cantidad,0),loading:loading||authLoading,error,refreshCart,
+        addItem:(id,qty,stock)=>mutate('/carrito/articulos','POST',{idVariante:id,cantidad:qty},list=>{
+            const old=list.find(i=>i.idVariante===id)
+            return old?list.map(i=>i.idVariante===id?{...i,cantidad:Math.min(stock,i.cantidad+qty)}:i):[...list,{idVariante:id,cantidad:Math.min(stock,qty)}]
+        }),
+        updateQuantity:(id,qty,stock)=>qty<=0?removeItem(id):mutate(`/carrito/articulos/${id}`,'PATCH',{cantidad:qty},list=>list.map(i=>i.idVariante===id?{...i,cantidad:Math.min(qty,stock)}:i)),
+        removeItem,clearCart:()=>mutate('/carrito','DELETE',undefined,()=>[])
+    }}>{children}</Context.Provider>
 }
-
-function useCart (){
-    const context = useContext(CartContext)
-
-    if(!context){
-        throw new Error(
-            'Se jodio algo porque el programa no esta usando el useCart dentro del cartProvider'
-        )
-    }
-    return context
-}
-
-export {
-    CartProvider,
-    useCart
-}
+export function useCart(){const c=useContext(Context);if(!c)throw new Error('Falta CartProvider');return c}

@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useOrder } from "../context/OrderContext";
-import { products } from "../data/products";
+import { getProducts } from "../services/catalogApi";
+import type {Product} from '../types/catalog'
 import { useNavigate } from "react-router-dom";
 
 function Checkout () {
     const { orderDraft, updateShippingData} = useOrder()
 
     const navigate = useNavigate()
+    const [products,setProducts]=useState<Product[]>([])
+    const [catalogError,setCatalogError]=useState('')
+    useEffect(()=>{void getProducts().then(setProducts).catch(e=>setCatalogError(e.message))},[])
 
     const [direccion, setDireccion] = useState(orderDraft?.direccionDeEnvio ?? '')
 
@@ -60,7 +64,7 @@ function Checkout () {
         return[{detail, product, variant}]
     })
 
-    const destinationIsValid = codigoDestino.trim().length === 5
+    const destinationIsValid = /^\d{5}$/.test(codigoDestino.trim())
 
     const addressIsValid = direccion.trim().length > 5
 
@@ -79,6 +83,7 @@ function Checkout () {
 
     return(
         <main className="mx-auto max-w-7xl px-6 py-16">
+        {catalogError&&<p role="alert">{catalogError}</p>}
 
         <div className="mb-10">
 
@@ -200,7 +205,7 @@ function Checkout () {
                     >
 
                         <img
-                        src={product.urlImg}
+                        src={product.urlImg ?? '/product-placeholder.svg'}
                         alt={product.nombre}
                         className="h-20 w-20 rounded-lg object-cover"
                         />

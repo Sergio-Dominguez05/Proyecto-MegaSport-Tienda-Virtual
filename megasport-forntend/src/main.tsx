@@ -5,16 +5,19 @@ import './index.css'
 import App from './App.tsx'
 import { CartProvider } from './context/CartContext.tsx'
 import { OrderProvider } from './context/OrderContext.tsx'
+import { AuthProvider } from './context/AuthProvider.tsx'
 
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <CartProvider>
-        <OrderProvider>
-          <App />
-        </OrderProvider>
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <OrderProvider>
+            <App />
+          </OrderProvider>
+        </CartProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )

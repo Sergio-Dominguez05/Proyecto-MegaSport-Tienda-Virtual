@@ -14,7 +14,9 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=700&q=80',
     activo: true,
     creadoEn: '2026-09-18',
+    categoriaId: 1,
     categoria: 'hombre',
+    categoriaNombre: 'Hombre',
 
     variantes: [
       {
@@ -56,7 +58,9 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=700&q=80',
     activo: true,
     creadoEn: '2026-09-18',
+    categoriaId: 1,
     categoria: 'hombre',
+    categoriaNombre: 'Hombre',
 
     variantes: [
       {
@@ -89,7 +93,9 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=700&q=80',
     activo: true,
     creadoEn: '2026-09-18',
+    categoriaId: 2,
     categoria: 'mujer',
+    categoriaNombre: 'Mujer',
 
     variantes: [
       {
@@ -122,7 +128,9 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=80',
     activo: true,
     creadoEn: '2026-09-18',
+    categoriaId: 4,
     categoria: 'zapatos',
+    categoriaNombre: 'Zapatos',
 
     variantes: [
       {
@@ -164,7 +172,9 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=700&q=80',
     activo: true,
     creadoEn: '2026-09-18',
+    categoriaId: 3,
     categoria: 'ninos',
+    categoriaNombre: 'Niños',
 
     variantes: [
       {

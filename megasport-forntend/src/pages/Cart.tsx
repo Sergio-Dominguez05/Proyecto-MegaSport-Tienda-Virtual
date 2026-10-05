@@ -1,20 +1,36 @@
 import { Link } from "react-router-dom"
 import { useCart } from "../context/CartContext"
-import { products } from "../data/products"
+import { getProducts } from "../services/catalogApi"
+import type { Product } from "../types/catalog"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useOrder } from "../context/OrderContext"
+import { useAuth } from "../hooks/useAuth"
 
 function Cart (){
 
     const navigate = useNavigate()
+    const {user}=useAuth()
+    const [catalogError,setCatalogError]=useState('')
 
     const {startOrder} = useOrder()
     const {
         items,
         updateQuantity,
         removeItem,
-        clearCart
+        clearCart,
+        loading: cartLoading,
+        error: cartError
     } = useCart()
+    const [products, setProducts] = useState<Product[]>([])
+    const [catalogLoading, setCatalogLoading] = useState(true)
+
+    useEffect(() => {
+        void getProducts()
+            .then(setProducts)
+            .catch(e=>setCatalogError(e.message))
+            .finally(() => setCatalogLoading(false))
+    }, [])
 
     const detailedItems = items.flatMap((item) => {
         const product = products.find((product) => product.variantes.some((variant) => variant.idVariante === item.idVariante))
@@ -45,6 +61,7 @@ function Cart (){
     }, 0)
 
     const handleContinuePurchase = () => {
+        if(!user){navigate('/login',{state:{from:'/carrito'}});return}
         if (detailedItems.length === 0){
             return
         }
@@ -63,6 +80,11 @@ function Cart (){
         navigate('/checkout')
     }
 
+    if (cartLoading || catalogLoading) {
+        return <main className="mx-auto max-w-7xl px-6 py-16">Cargando carrito...</main>
+    }
+
+    if (catalogError) return <main className="p-10" role="alert">{catalogError}</main>
     if (items.length === 0){
         return(
             <main className="mx-auto max-w-7xl px-6 py-16">
@@ -70,6 +92,7 @@ function Cart (){
                 <h1 className="text-4xl font-bold text-slate-900">
                     Tu carrito
                 </h1>
+                {cartError&&<p role="alert" className="mt-4 text-red-700">{cartError}</p>}
 
 
                 <div className="mt-10 rounded-2xl border border-gray-200 p-14 text-center">
@@ -107,7 +130,7 @@ function Cart (){
 
             <button
             type="button"
-            onClick={clearCart}
+            onClick={() => void clearCart().catch(()=>{})}
             className="text-sm font-semibold text-red-600 transition hover:text-red-800"
             >
             Vaciar carrito
@@ -117,7 +140,16 @@ function Cart (){
 
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_360px]">
+            {cartError && (
+                <p className="lg:col-span-2 rounded-xl bg-red-50 p-4 text-red-700">{cartError}</p>
+            )}
             <div className="space-y-5">
+                {items.filter(item=>!detailedItems.some(d=>d.item.idVariante===item.idVariante)).map(item=>(
+                    <article key={item.idVariante} className="rounded-xl border border-amber-300 p-5">
+                        <p>La variante #{item.idVariante} ya no está disponible. Elimínala para continuar.</p>
+                        <button className="mt-2 underline" onClick={()=>void removeItem(item.idVariante).catch(()=>{})}>Eliminar del carrito</button>
+                    </article>
+                ))}
                 {detailedItems.map(
                     ({
                         item,
@@ -133,7 +165,7 @@ function Cart (){
                                     className="shrink-0">
 
                                         <img
-                                            src={product.urlImg}
+                                            src={product.urlImg ?? '/product-placeholder.svg'}
                                             alt={product.nombre}
                                             className="h-40 w-full rounded-xl object-cover sm:w-40" />
                                 </Link>
@@ -146,7 +178,7 @@ function Cart (){
                                                 </p>
 
                                                 <Link
-                                                    to={`/product/${product.id}`}>
+                                                    to={`/producto/${product.id}`}>
                                                         <h2 className="mt-1 text-xl font-semibold text-slate-900 hover:text-gray-600">
                                                             {product.nombre}
                                                         </h2>
@@ -182,12 +214,11 @@ function Cart (){
                                             <div className="flex items-center">
                                                 <button
                                                     type="button"
-                                                    onClick={() =>
-                                                        updateQuantity(
+                                                    onClick={() => void updateQuantity(
                                                             variant.idVariante,
                                                             item.cantidad - 1,
                                                             variant.stock
-                                                        )
+                                                        ).catch(()=>{})
                                                     }
                                                 className="flex h-10 w-10 items-center justify-center rounded-l-lg border border-gray-300 text-lg"
                                                 >
@@ -205,12 +236,11 @@ function Cart (){
                                                     disabled={
                                                         item.cantidad >= variant.stock
                                                     }
-                                                    onClick={() =>
-                                                        updateQuantity(
+                                                    onClick={() => void updateQuantity(
                                                         variant.idVariante,
                                                         item.cantidad + 1,
                                                         variant.stock
-                                                        )
+                                                        ).catch(()=>{})
                                                     }
                                                     className="flex h-10 w-10 items-center justify-center rounded-r-lg border border-gray-300 text-lg disabled:cursor-not-allowed disabled:text-gray-300"
                                                 >
@@ -243,10 +273,9 @@ function Cart (){
 
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                removeItem(
+                                                onClick={() => void removeItem(
                                                     variant.idVariante
-                                                )
+                                                ).catch(()=>{})
                                                 }
                                                 className="mt-3 text-sm font-semibold text-red-600 hover:text-red-800"
                                             >

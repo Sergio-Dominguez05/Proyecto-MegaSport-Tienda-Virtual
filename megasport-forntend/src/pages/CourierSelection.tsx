@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useEffect } from "react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -12,11 +11,12 @@ function CourierSelection(){
     const navigate = useNavigate()
 
     const [quotes, setQuotes] = useState<CourierQuote[]>([])
-    const [loading, setLoading] = useState(false)
+    const codigoDestino = orderDraft?.codigoDelDestino ?? ''
+    const [loading, setLoading] = useState(Boolean(codigoDestino))
     const [error, setError] = useState('')
     const [selectedCourier, setSelectedCourier] = useState<string | null>(orderDraft?.idCourier ?? null)
-    const consultarCouriers = useCallback(async () => {
-        if (!orderDraft?.codigoDelDestino){
+    const consultarCouriers = async () => {
+        if (!codigoDestino){
             return
         }
 
@@ -24,16 +24,44 @@ function CourierSelection(){
             setLoading(true)
             setError('')
             setQuotes([])
-            const results = await consultarTodosLosCouriers(orderDraft.codigoDelDestino)
+            const results = await consultarTodosLosCouriers(codigoDestino)
             setQuotes(results)
         } catch {
             setError('Hubo un porblema intentando consultar con los couriers')
         } finally {
             setLoading(false)
         }
-    }, [orderDraft?.codigoDelDestino])
+    }
 
-    useEffect(() => { void consultarCouriers()}, [consultarCouriers])
+    useEffect(() => {
+        if (!codigoDestino) {
+            return
+        }
+
+        let cancelled = false
+
+        void consultarTodosLosCouriers(codigoDestino)
+            .then((results) => {
+                if (!cancelled) {
+                    setQuotes(results)
+                    setError('')
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setError('Hubo un problema al consultar los couriers')
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false)
+                }
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [codigoDestino])
 
     if (!orderDraft){
         return (

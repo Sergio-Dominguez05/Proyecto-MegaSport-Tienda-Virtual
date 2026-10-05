@@ -573,4 +573,66 @@ Pendiente:
 - Integracion con proveedores de tarjeta.
 - Validaciones finales de seguridad.
 
+
+======================================================================
+ACTUALIZACION DE DOCUMENTACION - 2026-10-04
+USUARIOS, AUTENTICACION Y AUTORIZACION POR ROL
+======================================================================
+
+Se corrigio primero la configuracion de modulos del backend cambiando el
+package a ES Modules. El backend vuelve a compilar correctamente con
+"npm run build".
+
+Tambien se corrigio getProductById(): la clausula WHERE ahora aparece antes
+de GROUP BY, como exige SQL.
+
+Se agregaron las dependencias bcryptjs y jsonwebtoken.
+
+Nuevos endpoints:
+
+POST /api/auth/registro
+- Valida nombre, correo, contrasena, direccion, codigo de destino y telefono.
+- El rol siempre se asigna en backend como CLIENTE.
+- Genera un hash bcrypt con costo 12.
+- Nunca devuelve hash_contrasena.
+- Devuelve token y perfil publico.
+
+POST /api/auth/login
+- Busca el correo sin distinguir mayusculas/minusculas.
+- Compara la contrasena con bcrypt.
+- Rechaza los marcadores PENDIENTE_HASH_BACKEND.
+- Devuelve token y perfil publico.
+
+GET /api/auth/perfil
+- Requiere Authorization: Bearer <token>.
+- Devuelve el usuario asociado al token.
+
+GET /api/auth/verificar-admin
+- Requiere token valido.
+- Requiere rol ADMINISTRADOR.
+- Permite comprobar el middleware de autorizacion por rol.
+
+Archivos agregados:
+- src/types/auth.ts
+- src/utils/httpError.ts
+- src/services/authService.ts
+- src/controllers/authController.ts
+- src/middleware/authMiddleware.ts
+- src/routes/authRoutes.ts
+- src/scripts/setUserPassword.ts
+- .env.example
+
+Variables nuevas:
+- FRONTEND_URL
+- DATABASE_SSL
+- JWT_SECRET, minimo 32 caracteres
+- JWT_EXPIRES_IN
+
+Para reemplazar el marcador de un usuario existente por un hash real:
+
+npm run set-password -- admin@megasport.local "UnaContrasenaSegura"
+
+El siguiente modulo recomendado es carrito persistente, usando el id del
+usuario autenticado recibido desde el token y nunca desde el navegador.
+
 FIN DE ACTUALIZACION 2026-10-03

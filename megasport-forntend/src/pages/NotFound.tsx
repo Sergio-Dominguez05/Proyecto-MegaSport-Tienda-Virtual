@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 function NotFound (){
     return (
-        <main className="felx min-h-[70vh] items-center justify-center px-6">
+        <main className="flex min-h-[70vh] items-center justify-center px-6">
             <div className="text-center">
                 <h1 className="text-7xl font-bold text-slate-900">
                     404

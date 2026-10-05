@@ -4,16 +4,24 @@ import dotenv from 'dotenv'
 import { pool } from './config/database.js'
 import categoryRoutes from './routes/categoryRoutes.js'
 import productRoutes from './routes/productRoutes.js'
+import authRoutes from './routes/authRoutes.js'
+import cartRoutes from './routes/cartRoutes.js'
+import integrationRoutes from './routes/integrationRoutes.js'
+import orderRoutes from './routes/orderRoutes.js'
+import adminRoutes from './routes/adminRoutes.js'
+import { expireReservations } from './services/orderService.js'
 
 dotenv.config()
 
-const app = express()
+export const app = express()
 
 const PORT = Number(process.env.PORT) || 3000
 
 app.use(express.json())
 
-app.use(cors())
+app.use(cors({
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173'
+}))
 
 app.get('/api/health', (_req, res) => {
     res.json({
@@ -46,7 +54,26 @@ app.use('/api/categorias', categoryRoutes)
 
 app.use('/api/productos', productRoutes)
 
+app.use('/api/auth', authRoutes)
 
+app.use('/api/carrito', cartRoutes)
+
+app.use('/api/integraciones', integrationRoutes)
+app.use('/api/ordenes', orderRoutes)
+app.use('/api/admin', adminRoutes)
+
+
+if(process.env.NODE_ENV!=='test') {
 app.listen(PORT, () => {
     console.log(`Se esta ejecutando la API del megasport en http://localhost:${PORT}`)
 })
+let expiring=false
+const sweep=async()=>{
+    if(expiring)return
+    expiring=true
+    try{await expireReservations()}catch{console.error('No se pudieron liberar reservas. Revisa la migración 03 y la conexión.')}
+    finally{expiring=false}
+}
+void sweep()
+setInterval(()=>void sweep(),60000).unref()
+}

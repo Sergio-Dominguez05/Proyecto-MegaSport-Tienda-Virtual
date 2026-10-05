@@ -7,7 +7,7 @@ type CategoryCardProps = {
     link: string
 }
 
-function CateogryCard ({
+function CategoryCard ({
     title,
     subtitle,
     image,
@@ -40,4 +40,4 @@ function CateogryCard ({
     )
 }
 
-export default CateogryCard
+export default CategoryCard

@@ -127,7 +127,7 @@ function Category (){
                                     name={product.nombre}
                                     category={product.categoria}
                                     price={product.precio}
-                                    image={product.urlImg ??'/placeholder-product.png'}
+                                    image={product.urlImg ?? '/product-placeholder.svg'}
                                     available={available} 
                                 />
                             )

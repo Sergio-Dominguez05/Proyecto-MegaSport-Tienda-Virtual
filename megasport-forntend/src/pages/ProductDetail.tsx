@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useEffect } from 'react'
 import { getProductById } from '../services/catalogApi'
@@ -16,6 +16,9 @@ import type { Product } from '../types/catalog'
 function ProductDetail() {
 
   const { id } = useParams()
+  const navigate = useNavigate()
+  const [adding, setAdding] = useState(false)
+  const [cartError, setCartError] = useState<string | null>(null)
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -158,21 +161,27 @@ function ProductDetail() {
   }
 
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
 
-    if (!selectedVariant) {
+    if (!selectedVariant || adding) {
       return
     }
 
-    addItem(
-      selectedVariant.idVariante,
-      quantity,
-      selectedVariant.stock
-    )
-
-    alert(
-      `${product.nombre} - ${selectedVariant.color} / ${selectedVariant.talla} seleccionado`
-    )
+    setAdding(true)
+    setCartError(null)
+    try {
+      await addItem(selectedVariant.idVariante, quantity, selectedVariant.stock)
+      // Solo retroceder si existe una entrada anterior dentro del router.
+      if (typeof window.history.state?.idx === 'number' && window.history.state.idx > 0) {
+        navigate(-1)
+      } else {
+        navigate(`/categoria/${product.categoria}`, { replace: true })
+      }
+    } catch (requestError) {
+      setCartError(requestError instanceof Error ? requestError.message : 'No se pudo agregar el producto')
+    } finally {
+      setAdding(false)
+    }
   }
 
 
@@ -219,7 +228,7 @@ function ProductDetail() {
             <div className="overflow-hidden rounded-3xl bg-gray-100">
 
               <img
-                src={product.urlImg ??'/placeholder-product.png'}
+                src={product.urlImg ?? '/product-placeholder.svg'}
                 alt={product.nombre}
                 className="aspect-square h-full w-full object-cover"
               />
@@ -421,13 +430,19 @@ function ProductDetail() {
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={!selectedVariant || selectedVariant.stock === 0}
+              disabled={adding || !selectedVariant || selectedVariant.stock === 0}
               className="mt-10 w-full rounded-xl bg-slate-950 px-6 py-4 text-lg font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-gray-300"
             >
-              {selectedVariant
+              {adding ? 'Agregando...' : selectedVariant
                 ? 'Agregar al carrito'
                 : 'Selecciona color y talla'}
             </button>
+
+            {cartError && (
+              <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                {cartError}
+              </p>
+            )}
 
           </div>
 

@@ -80,7 +80,7 @@ export async function getProducts( categoryName?: string):Promise<Product[]>{
             GROUP BY p.id, p.nombre, p.descripcion, p.precio, p.url_img, p.activo, p.creado_en, c.id, c.nombre
             ORDER BY p.id;`,
 
-            [categoryName ?? null,]
+            [categoryName ?? null]
     )
 
     return result.rows.map(mapProduct)
@@ -113,8 +113,8 @@ export async function getProductById( id: number): Promise<Product | null>{
             FROM producto p
             INNER JOIN categoria c ON c.id = p.id_categoria
             LEFT JOIN variante_producto v ON v.id_producto = p.id AND v.activo = TRUE
-            GROUP BY p.id, p.nombre, p.descripcion, p.precio, p.url_img, p.activo, p.creado_en, c.id, c.nombre
-            WHERE p.id = $1 AND p.activo = TRUE;`,
+            WHERE p.id = $1 AND p.activo = TRUE
+            GROUP BY p.id, p.nombre, p.descripcion, p.precio, p.url_img, p.activo, p.creado_en, c.id, c.nombre;`,
 
             [id]
 
@@ -124,5 +124,7 @@ export async function getProductById( id: number): Promise<Product | null>{
         return null
     }
 
-    return mapProduct(result.rows[0])
+    const product = result.rows[0]
+
+    return product ? mapProduct(product) : null
 }

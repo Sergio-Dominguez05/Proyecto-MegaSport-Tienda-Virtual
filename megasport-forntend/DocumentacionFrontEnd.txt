@@ -1715,4 +1715,47 @@ Todavia pendiente de migracion:
 - CRUD administrativo.
 - Eliminacion final de los datos y servicios simulados restantes.
 
+
+======================================================================
+ACTUALIZACION DE DOCUMENTACION - 2026-10-04
+REGISTRO E INICIO DE SESION CON BACKEND REAL
+======================================================================
+
+El frontend ahora incluye:
+- /registro
+- /login
+- AuthProvider
+- useAuth
+- authApi.ts
+- ProtectedRoute
+
+El token se conserva temporalmente en localStorage con la llave
+megasport-auth-token. Al recargar la pagina, AuthProvider consulta
+GET /api/auth/perfil para validar que la sesion siga vigente.
+
+El Navbar muestra el nombre del usuario autenticado y permite cerrar sesion.
+
+Las rutas de checkout, courier, pago y confirmacion requieren una sesion
+valida. Si no existe, ProtectedRoute redirige a /login y conserva la ruta a
+la que el usuario queria entrar.
+
+El registro envia exclusivamente los datos del formulario. El rol no se
+envia ni se elige en React: el backend crea siempre un CLIENTE.
+
+Tambien se corrigieron problemas que impedían generar el build:
+- productos locales actualizados al tipo Product real;
+- imagen alternativa para urlImg nulo;
+- correccion de CategoryCard y NotFound;
+- proveedor American Express agregado;
+- identificadores de tarjeta alineados con PostgreSQL;
+- efecto de CourierSelection corregido;
+- lint de los contextos existentes documentado de forma local.
+
+Estado de validacion:
+- npm run build: correcto.
+- npm run lint: correcto.
+
+El carrito y las ordenes todavia usan almacenamiento local. Su migracion debe
+ser el siguiente paso despues de probar Auth contra la base Supabase real.
+
 FIN DE ACTUALIZACION 2026-10-03

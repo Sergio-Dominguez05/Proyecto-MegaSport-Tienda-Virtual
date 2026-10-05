@@ -1,406 +1,50 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import { useParams } from "react-router-dom"
-import { useOrder } from "../context/OrderContext"
-import { consultarEstadoEnvio } from "../services/courierService"
-import { SHIPPING_STATUS_LABELS } from "../types/courier"
-import { couriers } from "../data/couriers"
-import { products } from "../data/products"
-
-function OrderConfirmation (){
-    const {id} = useParams()
-
-
-    const {completedOrders, updateOrderShippingStatus} = useOrder()
-    const [updating, setUpdating] = useState(false)
-    const [error, setError] = useState('')
-    const order = completedOrders.find((order) => order.id === id)
-
-    if (!order ){
-        return (
-        <main className="mx-auto max-w-7xl px-6 py-16">
-
-            <div className="rounded-2xl border border-gray-200 p-14 text-center">
-
-                <h1 className="text-3xl font-bold text-slate-900">
-                    No se encontro la orden D:
-                </h1>
-
-                <Link
-                    to="/"
-                    className="mt-8 inline-block rounded-xl bg-slate-950 px-7 py-3 font-semibold text-white"
-                >
-                    Volver al inicio
-                </Link>
-
-            </div>
-
-        </main>
-        )
+import {useEffect,useState} from 'react'
+import {Link,useParams} from 'react-router-dom'
+import {api} from '../services/api'
+import type {PersistedOrder} from '../types/persistedOrder'
+import {SHIPPING_STATUS_LABELS} from '../types/courier'
+import {useCart} from '../context/CartContext'
+export default function OrderConfirmation(){
+    const {id}=useParams()
+    const [order,setOrder]=useState<PersistedOrder|null>(null)
+    const [error,setError]=useState('')
+    const [busy,setBusy]=useState(false)
+    const {refreshCart}=useCart()
+    useEffect(()=>{
+        let cancelled=false
+        void api<PersistedOrder>(`/ordenes/${id}`).then(o=>{if(!cancelled)setOrder(o)}).catch(e=>{if(!cancelled)setError(e.message)})
+        return()=>{cancelled=true}
+    },[id])
+    useEffect(()=>{void refreshCart().catch(()=>{})},[refreshCart])
+    async function action(name:string){
+        setBusy(true);setError('')
+        try{setOrder(await api<PersistedOrder>(`/ordenes/${id}/${name}`,'POST'));await refreshCart()}
+        catch(e){setError(e instanceof Error?e.message:'No se pudo actualizar')}
+        finally{setBusy(false)}
     }
-
-    const courier = couriers.find((courier) => courier.identificador === order.idCourier)
-
-    const detailedItems =order.detalles.flatMap((detail) => {
-        const product = products.find((product) => product.variantes.some((variant) =>variant.idVariante === detail.idVariante))
-
-            if(!product){
-                return []
-            }
-
-            const variant =product.variantes.find((variant) => variant.idVariante === detail.idVariante)
-
-            if(!variant) {
-                return []
-            }
-
-            return [{
-                detail,
-                product,
-                variant,
-            }]
-        })
-
-    const handleUpdateStatus = async () => {
-        try {
-            setUpdating(true)
-            setError('')
-
-            const result = await consultarEstadoEnvio(order.idCourier, order.numEnvio)
-
-            updateOrderShippingStatus(order.id, result.estadoEnvio)
-        } catch (error) {
-            if(error instanceof Error){
-                setError(error.message)
-            } else {
-                setError('No se pudo consultar el estado')
-            }
-        } finally {
-            setUpdating(false)
-        }
-    }
-
-
-    
-    return(
-        <main className="mx-auto max-w-7xl px-6 py-16">
-
-            {/* CONFIRMACIÓN */}
-            <div className="rounded-3xl bg-green-50 p-8">
-
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">
-                    Compra completada
-                </p>
-
-                <h1 className="mt-3 text-4xl font-bold text-slate-900">
-                    Orden Confirmada :D
-                </h1>
-
-                <p className="mt-3 text-gray-600">
-                    El pago se autorizo y el envío se solicito correctamente.
-                </p>
-
-            </div>
-
-
-            <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_380px]">
-
-
-                <section className="space-y-6">
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-7">
-
-                    <h2 className="text-2xl font-bold text-slate-900">
-                        Información de la orden
-                    </h2>
-
-
-                    <div className="mt-6 grid gap-6 sm:grid-cols-2">
-
-                        <div>
-
-                            <p className="text-sm text-gray-500">
-                                Número de orden
-                            </p>
-
-                            <p className="mt-1 font-semibold text-slate-900">
-                                {order.id}
-                            </p>
-
-                        </div>
-
-
-                    <div>
-
-                        <p className="text-sm text-gray-500">
-                            Autorización
-                        </p>
-
-                        <p className="mt-1 font-semibold text-slate-900">
-                            {order.numAutorizacion}
-                        </p>
-
-                    </div>
-
-
-                    <div>
-
-                        <p className="text-sm text-gray-500">
-                            Courier
-                        </p>
-
-                        <p className="mt-1 font-semibold text-slate-900">
-                            {courier?.nombre ?? order.idCourier}
-                        </p>
-
-                    </div>
-
-
-                    <div>
-
-                        <p className="text-sm text-gray-500">
-                            Número de envío
-                        </p>
-
-                        <p className="mt-1 font-semibold text-slate-900">
-                            {order.numEnvio}
-                        </p>
-
-                    </div>
-
-                    </div>
-
-                </div>
-
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-7">
-
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-
-                        <div>
-
-                            <h2 className="text-2xl font-bold text-slate-900">
-                                Seguimiento del envío
-                            </h2>
-
-                            <p className="mt-2 text-gray-500">
-                                Estado actual:{' '}
-
-                            <span className="font-semibold text-slate-900">
-                                {SHIPPING_STATUS_LABELS[order.estadoEnvio]}
-                            </span>
-
-                            </p>
-
-                        </div>
-
-
-                        <button
-                            type="button"
-                            disabled={updating || order.estadoEnvio === 5}
-                            onClick={handleUpdateStatus}
-                            className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-                        >
-
-                            {updating ? 'Consultando...' : order.estadoEnvio === 5 ? 'Entregado' : 'Actualizar estado'}
-
-                        </button>
-
-                    </div>
-
-
-                    {error && (
-
-                    <p className="mt-4 text-sm font-semibold text-red-600">
-                        {error}
-                    </p>
-
-                    )}
-
-                    <div className="mt-8 space-y-4">
-
-                        {([1,2,3,4,5,] as const).map((status) => {
-
-                            const completed = status <= order.estadoEnvio
-
-                            return (
-
-                                <div
-                                    key={status}
-                                    className="flex items-center gap-4"
-                                >
-
-                                <div
-                                    className={
-                                    completed
-                                        ? 'flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white'
-                                        : 'flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-500'
-                                    }
-                                >
-                                    {status}
-                                </div>
-
-
-                                <p
-                                    className={
-                                    completed
-                                        ? 'font-semibold text-slate-900'
-                                        : 'text-gray-400'
-                                    }
-                                >
-                                    {SHIPPING_STATUS_LABELS[status]}
-                                </p>
-
-                                </div>
-
-                            )
-
-                            }
-                        )}
-
-                    </div>
-
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-7">
-
-                    <h2 className="text-2xl font-bold text-slate-900">
-                        Productos
-                    </h2>
-
-
-                    <div className="mt-6 space-y-5">
-
-                    {detailedItems.map(
-                        ({
-                        detail,
-                        product,
-                        variant,
-                        }) => (
-
-                        <div
-                            key={variant.idVariante}
-                            className="flex gap-4 border-b border-gray-100 pb-5 last:border-none"
-                        >
-
-                            <img
-                                src={product.urlImg}
-                                alt={product.nombre}
-                                className="h-20 w-20 rounded-lg object-cover"
-                            />
-
-
-                            <div>
-
-                                <p className="font-semibold text-slate-900">
-                                    {product.nombre}
-                                </p>
-
-                                <p className="mt-1 text-sm text-gray-500">
-                                    {variant.color}{' / '}{variant.talla}
-                                </p>
-
-                                <p className="mt-1 text-sm text-gray-500">
-                                    Cantidad:{' '}{detail.cantidad}
-                                </p>
-
-                            </div>
-
-                        </div>
-
-                        )
-                    )}
-
-                    </div>
-
-                </div>
-
-                </section>
-
-
-                <aside>
-
-                <div className="sticky top-8 rounded-2xl border border-gray-200 bg-white p-6">
-
-                    <h2 className="text-2xl font-bold text-slate-900">
-                        Resumen
-                    </h2>
-
-
-                    <div className="mt-6 flex justify-between text-gray-600">
-
-                        <span>
-                            Productos
-                        </span>
-
-                        <span>
-                            Q{order.subtotalAntesDeEnvio.toFixed(2)}
-                        </span>
-
-                    </div>
-
-
-                    <div className="mt-4 flex justify-between text-gray-600">
-
-                        <span>
-                            Envío
-                        </span>
-
-                        <span>
-                            Q{order.costoEnvio.toFixed(2)}
-                        </span>
-
-                    </div>
-
-
-                    <div className="my-6 border-t border-gray-200" />
-
-
-                        <div className="flex justify-between text-xl font-bold text-slate-900">
-
-                            <span>
-                                Total
-                            </span>
-
-                            <span>
-                                Q{order.total.toFixed(2)}
-                            </span>
-
-                        </div>
-
-
-                    <div className="mt-6 rounded-xl bg-gray-50 p-4">
-
-                        <p className="text-sm text-gray-500">
-                            Enviar a
-                        </p>
-
-                        <p className="mt-2 text-sm font-semibold text-slate-900">
-                            {order.direccionDeEnvio}
-                        </p>
-
-                        <p className="mt-1 text-xs text-gray-500">
-                            Código:{' '}{order.codigoDelDestino}
-                        </p>
-
-                        </div>
-
-
-                        <Link
-                            to="/"
-                            className="mt-6 block rounded-xl bg-slate-950 px-6 py-3 text-center font-semibold text-white transition hover:bg-slate-700"
-                        >
-                            Volver a la tienda
-                        </Link>
-
-                    </div>
-
-                </aside>
-
-            </div>
-
-        </main>
-    )
+    return <main className="mx-auto max-w-4xl space-y-6 px-6 py-12">
+        <h1 className="text-3xl font-bold">Orden #{id}</h1>
+        {error&&<p role="alert" className="rounded bg-red-50 p-4 text-red-700">{error}</p>}
+        {!order&&!error&&<p>Cargando…</p>}
+        {order&&<>
+            <section className="space-y-3 rounded-2xl border p-6">
+                {order.modo==='mock'&&<p className="font-semibold text-amber-700">Compra de prueba: no se realizó ningún cobro real.</p>}
+                <p>Pago: <strong>{order.estado_de_pagado}</strong></p><p>Envío: {order.envio_proceso}</p>
+                {order.nota_revision&&<p className="rounded bg-amber-50 p-3">{order.nota_revision}</p>}
+                {['PROCESANDO','REVISION'].includes(order.estado_de_pagado)&&<p>No intentes pagar otra vez. Se debe verificar el resultado con el emisor.</p>}
+                {order.num_autorizacion&&<p>Autorización: {order.num_autorizacion}</p>}
+                {order.num_envio&&<p>Referencia courier: {order.num_envio} · {SHIPPING_STATUS_LABELS[order.estado_envio]}</p>}
+                {order.estado_de_pagado==='PENDIENTE'&&<><p>Compra pendiente. Cancélala para liberar el stock y volver a preparar el pago.</p><button disabled={busy} onClick={()=>void action('cancelar')} className="rounded border px-4 py-2">Cancelar y liberar stock</button></>}
+                {order.estado_de_pagado==='APROBADO'&&order.envio_proceso==='PENDIENTE'&&<button disabled={busy} onClick={()=>void action('enviar')} className="rounded bg-slate-950 px-5 py-3 text-white">Solicitar envío (sin volver a cobrar)</button>}
+                {order.envio_proceso==='CREADO'&&<button disabled={busy} onClick={()=>void action('rastrear')} className="rounded border px-4 py-2">Actualizar seguimiento</button>}
+                {order.envio_proceso==='PROCESANDO'&&<p>Solicitud en proceso. Si no cambia al recargar, solicita revisión al administrador.</p>}
+                <p>{order.destinatario} · {order.direccion_de_envio} · {order.codigo_del_destino}</p>
+            </section>
+            <section className="rounded-2xl border p-6"><h2 className="mb-4 text-xl font-bold">Productos comprados</h2>
+                {order.detalles.map(d=><p key={d.id} className="border-b py-3">{d.nombre_producto} · {d.talla}/{d.color} · {d.cantidad_de_articulos} × Q{Number(d.precio_por_unidad).toFixed(2)}</p>)}
+                <p className="mt-5 text-xl font-bold">Total: Q{Number(order.total).toFixed(2)}</p>
+            </section>
+        </>}
+        <Link className="mr-6 underline" to="/pedidos">Mis pedidos</Link><Link className="underline" to="/">Seguir comprando</Link>
+    </main>
 }
-
-export default OrderConfirmation

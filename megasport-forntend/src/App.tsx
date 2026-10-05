@@ -10,6 +10,11 @@ import Checkout from './pages/Checkout'
 import CourierSelection from './pages/CourierSelection'
 import Payment from './pages/Payment'
 import OrderConfirmation from './pages/OrderConfirmation'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import ProtectedRoute from './components/ProtectedRoute'
+import Orders from './pages/Orders'
+import Admin from './pages/Admin'
 
 
 function App() {
@@ -34,27 +39,21 @@ function App() {
               element={<Cart />}
             />
 
+            <Route path="/login" element={<Login />} />
+            <Route path="/registro" element={<Register />} />
+
             <Route
               path="/producto/:id"
               element={<ProductDetail />} 
             />
-            <Route 
-              path="/checkout"
-              element={<Checkout />}
-            />
-            <Route 
-              path="/checkout/courier"
-              element={<CourierSelection />}
-            />
-            <Route 
-              path="/checkout/pago"
-              element={<Payment />}
-            />
-
-            <Route 
-              path='/orden/:id'
-              element={<OrderConfirmation />}
-            />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/pedidos" element={<Orders />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/checkout/courier" element={<CourierSelection />} />
+              <Route path="/checkout/pago" element={<Payment />} />
+              <Route path="/orden/:id" element={<OrderConfirmation />} />
+            </Route>
 
             <Route 
               path="*"
