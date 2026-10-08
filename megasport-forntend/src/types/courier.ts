@@ -9,6 +9,7 @@ export type Courier = {
 }
 
 export type CourierQuote = {
+    estadoConsulta?: 'DISPONIBLE' | 'SIN_COBERTURA' | 'ERROR'
     courierId: string
     courierName: string
     cobertura: boolean

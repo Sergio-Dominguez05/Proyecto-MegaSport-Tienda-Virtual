@@ -121,7 +121,7 @@ function CourierSelection(){
     }
 
     const handleContinuePayment = () => {
-        if (!selectedQuote){
+        if (loading || !selectedQuote?.cobertura || selectedQuote.costoEnvio === null){
             return
         }
         navigate('/checkout/pago')
@@ -296,7 +296,9 @@ function CourierSelection(){
                                         ) : (
 
                                             <p className="font-semibold text-red-600">
-                                                Sin cobertura
+                                                {quote.estadoConsulta === 'SIN_COBERTURA'
+                                                    ? 'Sin cobertura'
+                                                    : 'Consulta fallida'}
                                             </p>
 
                                         )}
@@ -395,7 +397,7 @@ function CourierSelection(){
                             <button
                             type="button"
                             disabled={
-                                !orderDraft.idCourier
+                                loading || !selectedQuote?.cobertura || selectedQuote.costoEnvio === null
                             }
                             onClick={
                                 handleContinuePayment

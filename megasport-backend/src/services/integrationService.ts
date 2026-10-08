@@ -1,3 +1,4 @@
+import { courierPayload, parseCourierQuote } from './courierContract.js'
 import { pool } from '../config/database.js'
 import { HttpError } from '../utils/httpError.js'
 import { callExternalService, type ExternalFormat } from './externalHttpService.js'
@@ -125,6 +126,7 @@ export async function quoteAllCouriers(
                                 courier.nombre,
 
                             cobertura: true,
+                            estadoConsulta: 'DISPONIBLE',
 
                             costoEnvio: 25,
 
@@ -144,43 +146,19 @@ export async function quoteAllCouriers(
                             formato,
                         )
 
-                    const cost =
-                        booleanValue(
-                            response.cobertura
-                        )
-                            ? cents(
-                                response.costo
-                              ) / 100
-                            : null
-
+                    const quote = parseCourierQuote(response)
                     return {
-                        courierId:
-                            courier.identificador,
-
-                        courierName:
-                            textValue(
-                                response.courier
-                            ) || courier.nombre,
-
-                        cobertura:
-                            booleanValue(
-                                response.cobertura
-                            ),
-
-                        costoEnvio:
-                            cost,
-
-                        mensaje:
-                            booleanValue(
-                                response.cobertura
-                            )
-                                ? 'Cobertura disponible'
-                                : 'Destino sin cobertura',
+                        courierId: courier.identificador,
+                        courierName: courier.nombre,
+                        ...quote,
+                        estadoConsulta: quote.cobertura ? 'DISPONIBLE' : 'SIN_COBERTURA',
+                        mensaje: quote.cobertura ? 'Cobertura disponible' : 'Destino sin cobertura',
                     }
 
                 } catch (error) {
 
                     return {
+                        estadoConsulta: 'ERROR',
                         courierId:
                             courier.identificador,
 
@@ -217,7 +195,7 @@ export async function requestShipment(
     const courier = await activeCourier(courierId)
     const formato = data.formato ?? courier.formato
     if(serviceMode()==='mock') return {courierId, numeroEnvio:`SIM-ENV-${data.orden}`,estadoEnvio:1}
-    const response = await callExternalService(
+    const response = courierPayload(await callExternalService(
         courier.host,
         courier.script_de_envio,
         {
@@ -229,7 +207,9 @@ export async function requestShipment(
             formato,
         },
         formato,
-    )
+    ), 'envio')
+    if (['RECHAZADO', 'DENEGADO', 'ERROR'].includes(textValue(response.status).trim().toUpperCase()))
+        throw new HttpError(502, 'El courier rechazó la solicitud de envío; verifiquen el pedido con el proveedor')
     const shippingNumber = textValue(
         response.numero_envio
         ?? response.numeroEnvio
@@ -255,7 +235,7 @@ export async function requestShipmentStatus(
     const courier = await activeCourier(courierId)
     const formato = formatoOverride ?? courier.formato
     if(serviceMode()==='mock') return {courierId,numeroEnvio:`SIM-ENV-${orden}`,estadoEnvio:1}
-    const response = await callExternalService(
+    const response = courierPayload(await callExternalService(
         courier.host,
         courier.script_de_status,
         {
@@ -264,7 +244,7 @@ export async function requestShipmentStatus(
             formato,
         },
         formato,
-    )
+    ), 'orden')
     const status = shippingStatusValue(
             response.estado_envio
             ?? response.estadoEnvio
