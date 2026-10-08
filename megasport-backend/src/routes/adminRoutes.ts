@@ -13,10 +13,36 @@ const definitions:Record<string,Def>={
     productos:{table:'producto',key:'id',soft:true,fields:{id_categoria:'id',nombre:'text150',descripcion:'optional1000',precio:'money',url_img:'url',activo:'bool'}},
     variantes:{table:'variante_producto',key:'id_variante',soft:true,fields:{id_producto:'id',talla:'text20',color:'text50',sku:'text50',stock:'int',stock_minimo:'int',activo:'bool'}},
     clientes:{table:'usuario',key:'id',soft:true,filter:"rol='CLIENTE'",fields:{nombre:'text150',email:'email',telefono:'text25',direccion:'text300',codigo_de_destino:'destination',activo:'bool'}},
-    couriers:{table:'courier',key:'identificador',soft:true,fields:{nombre:'text100',host:'host',script_de_consulta:'script',script_de_envio:'script',script_de_status:'script',activo:'bool'}},
-    tarjetas:{table:'tarjeta',key:'identificador',soft:true,fields:{nombre:'text50',host:'host',script_de_autorizacion:'script',activo:'bool'}}
+    couriers: {
+        table: 'courier',
+        key: 'identificador',
+        soft: true,
+        fields: {
+            nombre: 'text100',
+            host: 'host',
+            script_de_consulta: 'script',
+            script_de_envio: 'script',
+            script_de_status: 'script',
+            formato: 'format',
+            activo: 'bool'
+        }
+    },
+    tarjetas: {
+        table: 'tarjeta',
+        key: 'identificador',
+        soft: true,
+        fields: {
+            nombre: 'text50',
+            host: 'host',
+            script_de_autorizacion: 'script',
+            formato: 'format',
+            activo: 'bool'
+        }
+    }
 }
 function value(raw:unknown,type:string):unknown{
+    if (type === 'format') {const s = stringField(raw,'Formato',4).toUpperCase()
+        if (s !== 'JSON' && s !== 'XML') {throw new HttpError(400,'Formato debe ser JSON o XML')}return s}
     if(type==='bool'){if(typeof raw!=='boolean')throw new HttpError(400,'Valor activo inválido');return raw}
     if(type==='id'||type==='int')return intField(raw,'Número',type==='int'?0:1)
     if(type==='money')return cents(raw)/100
@@ -37,6 +63,8 @@ function value(raw:unknown,type:string):unknown{
     }
     if(type==='script'){const s=stringField(raw,'Script',255);if(!s.startsWith('/')||s.startsWith('//')||s.includes('://')||s.includes('?')||s.includes('#'))throw new HttpError(400,'Script debe ser una ruta, por ejemplo /consulta');return s}
     return stringField(raw,'Texto',Number(type.replace('text','')))
+
+    
 }
 function def(name:unknown):Def{const d=definitions[String(name)];if(!d)throw new HttpError(404,'Recurso no encontrado');return d}
 const router=Router()

@@ -57,7 +57,7 @@ export async function prepareOrder(userId:number,input:Record<string,unknown>) {
     const courierId=stringField(input.courierId,'courier',15)
     const existing=await pool.query('SELECT id FROM orden WHERE id_usuario=$1 AND clave_solicitud=$2',[userId,key])
     if(existing.rows[0]) return orderDetail(String(existing.rows[0].id),userId)
-    const quotes=await quoteAllCouriers(destination,'JSON')
+    const quotes = await quoteAllCouriers(destination)
     const quote=quotes.find(q=>q.courierId===courierId && q.cobertura && q.costoEnvio!==null)
     if(!quote) throw new HttpError(409,'El courier no confirmó cobertura y precio. Vuelve a cotizar.')
     const shipping=cents(quote.costoEnvio)
@@ -144,7 +144,13 @@ export async function payOrder(userId:number,id:string,input:Record<string,unkno
     })
     if(!order) return orderDetail(id,userId)
     try {
-        const result=await authorizeCard({tarjeta,nombre,fechaVencimiento,numeroSeguridad,monto:Number(order.total),formato:'JSON'})
+        const result = await authorizeCard({
+            tarjeta,
+            nombre,
+            fechaVencimiento,
+            numeroSeguridad,
+            monto: Number(order.total)
+        })
         await settlePayment(userId,id,result.status,result.authorizationNumber)
     } catch {
         // Nunca reintentar a ciegas: la petición pudo haber sido cobrada aunque se perdiera la respuesta.
@@ -179,8 +185,15 @@ export async function sendOrder(userId:number,id:string) {
     })
     if(!order) return orderDetail(id,userId)
     try {
-        const shipment=await requestShipment(order.id_courier,{orden:id,destinatario:order.destinatario,
-            destino:order.codigo_del_destino,direccion:order.direccion_de_envio,formato:'JSON'})
+        const shipment = await requestShipment(
+        order.id_courier,
+        {
+            orden: id,
+            destinatario: order.destinatario,
+            destino: order.codigo_del_destino,
+            direccion: order.direccion_de_envio
+        }
+    )
         if(shipment.numeroEnvio.length>100) throw new Error('Referencia inválida')
         await pool.query("UPDATE orden SET envio_proceso='CREADO',num_envio=$2,estado_envio=$3,nota_revision=NULL WHERE id=$1",
             [id,shipment.numeroEnvio,shipment.estadoEnvio])
@@ -194,7 +207,10 @@ export async function trackOrder(userId:number,id:string) {
     if(order.envio_proceso!=='CREADO') throw new HttpError(409,'El envío aún no está confirmado')
     if(order.modo!==serviceMode()) throw new HttpError(409,'El modo no coincide con esta orden')
     // Exactamente la misma referencia de orden enviada al crear el envío.
-    const result=await requestShipmentStatus(order.id_courier,id,'JSON')
+    const result = await requestShipmentStatus(
+        order.id_courier,
+        id
+    )
     await pool.query('UPDATE orden SET estado_envio=GREATEST(estado_envio,$2) WHERE id=$1',[id,result.estadoEnvio])
     return orderDetail(id,userId)
 }

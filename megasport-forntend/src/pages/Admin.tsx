@@ -7,8 +7,24 @@ const schemas:Record<string,Record<string,string>>={
     productos:{id_categoria:'number',nombre:'text',descripcion:'text',precio:'number',url_img:'text',activo:'checkbox'},
     variantes:{id_producto:'number',talla:'text',color:'text',sku:'text',stock:'number',stock_minimo:'number',activo:'checkbox'},
     clientes:{nombre:'text',email:'email',telefono:'text',direccion:'text',codigo_de_destino:'text',activo:'checkbox'},
-    couriers:{identificador:'text',nombre:'text',host:'text',script_de_consulta:'text',script_de_envio:'text',script_de_status:'text',activo:'checkbox'},
-    tarjetas:{identificador:'text',nombre:'text',host:'text',script_de_autorizacion:'text',activo:'checkbox'}
+    couriers: {
+        identificador: 'text',
+        nombre: 'text',
+        host: 'text',
+        script_de_consulta: 'text',
+        script_de_envio: 'text',
+        script_de_status: 'text',
+        formato: 'text',
+        activo: 'checkbox'
+    },
+    tarjetas: {
+        identificador: 'text',
+        nombre: 'text',
+        host: 'text',
+        script_de_autorizacion: 'text',
+        formato: 'text',
+        activo: 'checkbox'
+    }
 }
 export default function Admin(){
     const {user}=useAuth()
@@ -40,7 +56,7 @@ function Resource({section}:{section:string}){
     }
     return <section className="space-y-5">
         {message&&<p role="status" className="rounded bg-amber-50 p-3">{message}</p>}
-        {schema&&<button className="rounded bg-slate-950 px-4 py-2 text-white" onClick={()=>{setEditing(null);setForm(Object.fromEntries(Object.entries(schema).map(([f,t])=>[f,t==='checkbox'?true:t==='number'?0:''])));setMessage('')}}>Agregar {section}</button>}
+        {schema&&<button className="rounded bg-slate-950 px-4 py-2 text-white" onClick={()=>{setEditing(null);setForm(Object.fromEntries(Object.entries(schema).map(([f,t]) => [f, t === 'checkbox' ? true : t === 'number' ? 0 : f === 'formato' ? 'JSON' : ''])));setMessage('')}}>Agregar {section}</button>}
         {section==='variantes'&&<p>Stock indica unidades disponibles para nuevas compras (las reservas ya están descontadas). Stock mínimo es el umbral de alerta.</p>}
         {form&&schema&&<form onSubmit={e=>{e.preventDefault();void submit(editing?'PUT':'POST',`/admin/${section}${editing?'/'+encodeURIComponent(editing):''}`,form)}} className="grid gap-4 rounded-xl border p-5 md:grid-cols-2">
             {Object.entries(schema).filter(([f])=>!(editing&&f==='identificador')).map(([field,type])=><label key={field} className="block">{field}

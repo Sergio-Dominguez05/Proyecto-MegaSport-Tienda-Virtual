@@ -16,6 +16,11 @@ dotenv.config()
 export const app = express()
 
 const PORT = Number(process.env.PORT) || 3000
+const HOST = process.env.HOST ?? '0.0.0.0'
+
+app.listen(PORT, HOST, () => {
+    console.log(`MegaSport API escuchando en ${HOST}:${PORT}`)
+})
 
 app.use(express.json())
 

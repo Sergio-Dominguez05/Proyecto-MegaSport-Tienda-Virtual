@@ -16,6 +16,7 @@ type CourierRow = {
     script_de_consulta: string
     script_de_envio: string
     script_de_status: string
+    formato: ExternalFormat
 }
 
 type CardRow = {
@@ -23,10 +24,42 @@ type CardRow = {
     nombre: string
     host: string
     script_de_autorizacion: string
+    formato: ExternalFormat
 }
 
 function textValue(value: unknown): string {
     return value === undefined || value === null ? '' : String(value)
+}
+
+function shippingStatusValue(
+    value: unknown
+): number | null {
+
+    const numeric = Number(value)
+
+    if (
+        Number.isInteger(numeric) &&
+        numeric >= 1 &&
+        numeric <= 5
+    ) {
+        return numeric
+    }
+
+    const normalized = textValue(value)
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+
+    const statuses: Record<string, number> = {
+        'ORDEN NUEVA': 1,
+        'SURTIENDOSE': 2,
+        'EMPACANDOSE': 3,
+        'EN RUTA': 4,
+        'ENTREGADA': 5,
+    }
+
+    return statuses[normalized] ?? null
 }
 
 function booleanValue(value: unknown): boolean {
@@ -40,8 +73,8 @@ function numberValue(value: unknown): number | null {
 
 async function activeCourier(id: string): Promise<CourierRow> {
     const result = await pool.query<CourierRow>(
-        `SELECT identificador, nombre, host, script_de_consulta, script_de_envio, script_de_status
-         FROM courier WHERE identificador = $1 AND activo = TRUE`,
+        `SELECT identificador, nombre, host, script_de_consulta, script_de_envio, script_de_status, formato
+        FROM courier WHERE identificador = $1 AND activo = TRUE`,
         [id],
     )
     if (!result.rows[0]) {
@@ -50,47 +83,139 @@ async function activeCourier(id: string): Promise<CourierRow> {
     return result.rows[0]
 }
 
-export async function quoteAllCouriers(destino: string, formato: ExternalFormat) {
-    const result = await pool.query<CourierRow>(
-        `SELECT identificador, nombre, host, script_de_consulta, script_de_envio, script_de_status
-         FROM courier WHERE activo = TRUE ORDER BY identificador`,
-    )
 
-    return Promise.all(result.rows.map(async (courier) => {
-        try {
-            if(serviceMode()==='mock') return {courierId:courier.identificador, courierName:courier.nombre,
-                cobertura:true, costoEnvio:25, mensaje:'SIMULACIÓN: tarifa de prueba Q25'}
-            const response = await callExternalService(
-                courier.host,
-                courier.script_de_consulta,
-                { destino, formato },
-                formato,
-            )
-            const cost = booleanValue(response.cobertura) ? cents(response.costo)/100 : null
-            return {
-                courierId: courier.identificador,
-                courierName: textValue(response.courier) || courier.nombre,
-                cobertura: booleanValue(response.cobertura),
-                costoEnvio: cost,
-                mensaje: booleanValue(response.cobertura) ? 'Cobertura disponible' : 'Destino sin cobertura',
+export async function quoteAllCouriers(
+    destino: string,
+    formatoOverride?: ExternalFormat
+) {
+
+    const result =
+        await pool.query<CourierRow>(`
+            SELECT
+                identificador,
+                nombre,
+                host,
+                script_de_consulta,
+                script_de_envio,
+                script_de_status,
+                formato
+            FROM courier
+            WHERE activo = TRUE
+            ORDER BY identificador
+        `)
+
+    return Promise.all(
+        result.rows.map(
+            async (courier) => {
+
+                try {
+
+                    const formato =
+                        formatoOverride
+                        ?? courier.formato
+
+                    if (
+                        serviceMode() === 'mock'
+                    ) {
+                        return {
+                            courierId:
+                                courier.identificador,
+
+                            courierName:
+                                courier.nombre,
+
+                            cobertura: true,
+
+                            costoEnvio: 25,
+
+                            mensaje:
+                                'SIMULACIÓN: tarifa de prueba Q25'
+                        }
+                    }
+
+                    const response =
+                        await callExternalService(
+                            courier.host,
+                            courier.script_de_consulta,
+                            {
+                                destino,
+                                formato,
+                            },
+                            formato,
+                        )
+
+                    const cost =
+                        booleanValue(
+                            response.cobertura
+                        )
+                            ? cents(
+                                response.costo
+                              ) / 100
+                            : null
+
+                    return {
+                        courierId:
+                            courier.identificador,
+
+                        courierName:
+                            textValue(
+                                response.courier
+                            ) || courier.nombre,
+
+                        cobertura:
+                            booleanValue(
+                                response.cobertura
+                            ),
+
+                        costoEnvio:
+                            cost,
+
+                        mensaje:
+                            booleanValue(
+                                response.cobertura
+                            )
+                                ? 'Cobertura disponible'
+                                : 'Destino sin cobertura',
+                    }
+
+                } catch (error) {
+
+                    return {
+                        courierId:
+                            courier.identificador,
+
+                        courierName:
+                            courier.nombre,
+
+                        cobertura:
+                            false,
+
+                        costoEnvio:
+                            null,
+
+                        mensaje:
+                            error instanceof Error
+                                ? error.message
+                                : 'No se pudo consultar este courier',
+                    }
+                }
             }
-        } catch (error) {
-            return {
-                courierId: courier.identificador,
-                courierName: courier.nombre,
-                cobertura: false,
-                costoEnvio: null,
-                mensaje: error instanceof Error ? error.message : 'No se pudo consultar este courier',
-            }
-        }
-    }))
+        )
+    )
 }
 
 export async function requestShipment(
     courierId: string,
-    data: { orden: string; destinatario: string; destino: string; direccion: string; formato: ExternalFormat },
+    data: {
+        orden: string
+        destinatario: string
+        destino: string
+        direccion: string
+        formato?: ExternalFormat
+    },
 ) {
     const courier = await activeCourier(courierId)
+    const formato = data.formato ?? courier.formato
     if(serviceMode()==='mock') return {courierId, numeroEnvio:`SIM-ENV-${data.orden}`,estadoEnvio:1}
     const response = await callExternalService(
         courier.host,
@@ -101,11 +226,16 @@ export async function requestShipment(
             destino: data.destino,
             direccion: data.direccion,
             tienda: process.env.TIENDA_ID ?? 'MEGASPORT',
-            formato: data.formato,
+            formato,
         },
-        data.formato,
+        formato,
     )
-    const shippingNumber = textValue(response.numero_envio ?? response.numeroEnvio ?? response.numero)
+    const shippingNumber = textValue(
+        response.numero_envio
+        ?? response.numeroEnvio
+        ?? response.numero
+        ?? response.guia
+    )
     if (!shippingNumber) {
         throw new HttpError(502, 'El courier no devolvió un número de envío')
     }
@@ -120,20 +250,34 @@ export async function requestShipment(
 export async function requestShipmentStatus(
     courierId: string,
     orden: string,
-    formato: ExternalFormat,
+    formatoOverride?: ExternalFormat,
 ) {
     const courier = await activeCourier(courierId)
+    const formato = formatoOverride ?? courier.formato
     if(serviceMode()==='mock') return {courierId,numeroEnvio:`SIM-ENV-${orden}`,estadoEnvio:1}
     const response = await callExternalService(
         courier.host,
         courier.script_de_status,
-        { orden, tienda: process.env.TIENDA_ID ?? 'MEGASPORT', formato },
+        {
+            orden,
+            tienda: process.env.TIENDA_ID ?? 'MEGASPORT',
+            formato,
+        },
         formato,
     )
-    const status = Number(response.estado_envio ?? response.estadoEnvio ?? response.status ?? response.estado)
-    if (!Number.isInteger(status) || status < 1 || status > 5) {
-        throw new HttpError(502, 'El courier devolvió un estado de envío inválido')
-    }
+    const status = shippingStatusValue(
+            response.estado_envio
+            ?? response.estadoEnvio
+            ?? response.status
+            ?? response.estado
+        )
+
+        if (status === null) {
+            throw new HttpError(
+                502,
+                'El courier devolvió un estado de envío inválido'
+            )
+        }
     return { courierId: courier.identificador, numeroEnvio: orden, estadoEnvio: status }
 }
 
@@ -150,15 +294,15 @@ export async function authorizeCard(data: {
     fechaVencimiento: string
     numeroSeguridad: string
     monto: number
-    formato: ExternalFormat
+    formato?: ExternalFormat
 }) {
     const issuerId = CARD_PREFIX[data.tarjeta.charAt(0)]
     if (!issuerId) {
         throw new HttpError(400, 'No se reconoce el emisor de la tarjeta')
     }
     const result = await pool.query<CardRow>(
-        `SELECT identificador, nombre, host, script_de_autorizacion
-         FROM tarjeta WHERE identificador = $1 AND activo = TRUE`,
+        `SELECT identificador, nombre, host, script_de_autorizacion, formato
+        FROM tarjeta WHERE identificador = $1 AND activo = TRUE`,
         [issuerId],
     )
     const issuer = result.rows[0]
@@ -174,6 +318,8 @@ export async function authorizeCard(data: {
             message:'SIMULACIÓN: no se realizó un cobro'}
     }
 
+    const formato = data.formato ?? issuer.formato
+
     const response = await callExternalService(
         issuer.host,
         issuer.script_de_autorizacion,
@@ -184,9 +330,9 @@ export async function authorizeCard(data: {
             num_seguridad: data.numeroSeguridad,
             monto: data.monto.toFixed(2),
             tienda: process.env.TIENDA_ID ?? 'MEGASPORT',
-            formato: data.formato,
+            formato,
         },
-        data.formato,
+        formato,
     )
     const rawStatus = textValue(response.status ?? response.estado).toUpperCase()
     const approved = ['APROBADO', 'APPROVED', '1', 'TRUE'].includes(rawStatus)

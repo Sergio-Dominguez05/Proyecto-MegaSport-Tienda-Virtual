@@ -5,7 +5,9 @@ CREATE TABLE tarjeta (
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     nombre VARCHAR(50) NOT NULL UNIQUE,
     host VARCHAR(45) NOT NULL,
-    script_de_autorizacion VARCHAR(255) NOT NULL
+    script_de_autorizacion VARCHAR(255) NOT NULL,
+    formato VARCHAR(4) NOT NULL DEFAULT 'JSON'
+        CHECK (formato IN ('JSON', 'XML'))
 );
 
 CREATE TABLE courier (
@@ -15,7 +17,9 @@ CREATE TABLE courier (
     host VARCHAR(45) NOT NULL,
     script_de_consulta VARCHAR(255) NOT NULL,
     script_de_envio VARCHAR(255) NOT NULL,
-    script_de_status VARCHAR(255) NOT NULL
+    script_de_status VARCHAR(255) NOT NULL,
+    formato VARCHAR(4) NOT NULL DEFAULT 'JSON'
+        CHECK (formato IN ('JSON', 'XML'))
 );
 
 CREATE TABLE usuario (

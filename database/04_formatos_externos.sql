@@ -1,0 +1,15 @@
+--Este archivo actualiza la db para formato XML, SI NO SE HA CREADO LA DB NO SE EJECTUTA ESTE COMANDO--
+
+BEGIN;
+
+ALTER TABLE courier
+ADD COLUMN IF NOT EXISTS formato VARCHAR(4)
+NOT NULL DEFAULT 'JSON'
+CHECK (formato IN ('JSON', 'XML'));
+
+ALTER TABLE tarjeta
+ADD COLUMN IF NOT EXISTS formato VARCHAR(4)
+NOT NULL DEFAULT 'JSON'
+CHECK (formato IN ('JSON', 'XML'));
+
+COMMIT;
