@@ -1,0 +1,10 @@
+Esta actualización agrega órdenes persistentes, reserva de stock, Mis pedidos y panel administrativo.
+
+1. Ejecutar database/03_ordenes.sql en Supabase una sola vez.
+2. Extraer este paquete sobre el proyecto base completo.
+3. Ejecutar npm install en megasport-backend.
+4. Mantener EXTERNAL_SERVICES_MODE=mock durante las pruebas.
+5. Ejecutar npm test en megasport-backend.
+6. Ejecutar npm run dev en backend y frontend.
+
+Incluye pruebas aisladas que no usan credenciales reales.

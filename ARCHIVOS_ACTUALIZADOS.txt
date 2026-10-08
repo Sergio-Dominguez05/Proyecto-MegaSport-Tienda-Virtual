@@ -1,0 +1,42 @@
+MEGASPORT - ARCHIVOS NUEVOS O MODIFICADOS
+
+Uso:
+1. Cierra los servidores del frontend y backend.
+2. Extrae el contenido del ZIP dentro de la carpeta principal del proyecto.
+3. Cuando Windows pregunte, selecciona "Reemplazar los archivos en el destino".
+4. En la carpeta megasport-backend ejecuta: npm install
+5. Agrega las variables nuevas a los archivos .env según la guía
+   INTEGRACION_CARRITO_Y_SERVICIOS.md.
+6. Vuelve a ejecutar backend y frontend con: npm run dev
+
+ARCHIVOS GENERALES
+- README.md
+- INTEGRACION_CARRITO_Y_SERVICIOS.md (nuevo)
+- ARCHIVOS_ACTUALIZADOS.txt (nuevo)
+
+BACKEND
+- megasport-backend/.env.example
+- megasport-backend/package.json
+- megasport-backend/package-lock.json
+- megasport-backend/src/server.ts
+- megasport-backend/src/types/cart.ts (nuevo)
+- megasport-backend/src/services/cartService.ts (nuevo)
+- megasport-backend/src/services/externalHttpService.ts (nuevo)
+- megasport-backend/src/services/integrationService.ts (nuevo)
+- megasport-backend/src/controllers/cartController.ts (nuevo)
+- megasport-backend/src/controllers/integrationController.ts (nuevo)
+- megasport-backend/src/routes/cartRoutes.ts (nuevo)
+- megasport-backend/src/routes/integrationRoutes.ts (nuevo)
+
+FRONTEND
+- megasport-forntend/.env.example
+- megasport-forntend/src/context/CartContext.tsx
+- megasport-forntend/src/pages/Cart.tsx
+- megasport-forntend/src/pages/ProductDetail.tsx
+- megasport-forntend/src/pages/Payment.tsx
+- megasport-forntend/src/services/cartApi.ts (nuevo)
+- megasport-forntend/src/services/cardService.ts
+- megasport-forntend/src/services/courierService.ts
+- megasport-forntend/src/types/courier.ts
+
+No se incluye ningún archivo .env privado ni credenciales.

@@ -1759,3 +1759,22 @@ VALUES
 
 
 FIN DE DOCUMENTACION DE LA BASE DE DATOS
+
+
+======================================================================
+ACTUALIZACION - 2026-10-04
+SCRIPTS REPRODUCIBLES Y SOPORTE DE AUTENTICACION
+======================================================================
+
+Se agrego la carpeta database/ con:
+
+- 01_schema.sql: crea las 10 tablas, restricciones e indices.
+- 02_seed.sql: carga catalogo, variantes, couriers, tarjetas y el
+  administrador de prueba de forma idempotente cuando es posible.
+
+El registro real de usuarios ya genera bcrypt en el backend. Los registros
+antiguos con PENDIENTE_HASH_BACKEND deben actualizarse usando el comando:
+
+npm run set-password -- correo@ejemplo.com "UnaContrasenaSegura"
+
+No se agregaron contrasenas reales a los scripts SQL ni al repositorio.
