@@ -74,6 +74,60 @@ function candidateScripts(script: string): string[] {
     return scripts
 }
 
+function externalLoggingEnabled(): boolean {
+    return (process.env.EXTERNAL_SERVICE_LOGGING ?? 'true').trim().toLowerCase() !== 'false'
+}
+
+function maskedUrl(url: URL): string {
+    const safe = new URL(url.toString())
+    const card = safe.searchParams.get('tarjeta')
+    if (card) safe.searchParams.set('tarjeta', `${'*'.repeat(Math.max(0, card.length - 4))}${card.slice(-4)}`)
+    if (safe.searchParams.has('num_seguridad')) safe.searchParams.set('num_seguridad', '***')
+    return safe.toString()
+}
+
+function maskSensitiveText(value: string): string {
+    let safe = value
+
+    safe = safe.replace(/("tarjeta"\s*:\s*")([^"\\]+)(")/gi, (_m, p1: string, card: string, p3: string) =>
+        `${p1}${'*'.repeat(Math.max(0, card.length - 4))}${card.slice(-4)}${p3}`,
+    )
+    safe = safe.replace(/(<tarjeta(?:\s[^>]*)?>)([^<]*)(<\/tarjeta>)/gi, (_m, p1: string, card: string, p3: string) =>
+        `${p1}${'*'.repeat(Math.max(0, card.length - 4))}${card.slice(-4)}${p3}`,
+    )
+    safe = safe.replace(/("num_seguridad"\s*:\s*")[^"\\]+(")/gi, '$1***$2')
+    safe = safe.replace(/(<num_seguridad(?:\s[^>]*)?>)[^<]*(<\/num_seguridad>)/gi, '$1***$2')
+
+    const maxLength = 6000
+    return safe.length > maxLength ? `${safe.slice(0, maxLength)}\n...[respuesta truncada]` : safe
+}
+
+function logRequest(url: URL, format: ExternalFormat, attempt: number, totalAttempts: number): void {
+    if (!externalLoggingEnabled()) return
+    console.log('\n[EXTERNO][SOLICITUD] --------------------------------------------------')
+    console.log(`[EXTERNO] ${new Date().toISOString()} | GET | intento ${attempt}/${totalAttempts} | formato=${format}`)
+    console.log(`[EXTERNO] URL: ${maskedUrl(url)}`)
+}
+
+function logResponse(response: Response, body: string, durationMs: number): void {
+    if (!externalLoggingEnabled()) return
+    console.log(`[EXTERNO][RESPUESTA] HTTP ${response.status} ${response.statusText} | ${durationMs} ms`)
+    console.log(`[EXTERNO] Content-Type: ${response.headers.get('content-type') ?? '(sin content-type)'}`)
+    console.log(`[EXTERNO] Body:\n${maskSensitiveText(body || '(vacío)')}`)
+}
+
+function logParsed(parsed: Record<string, unknown>): void {
+    if (!externalLoggingEnabled()) return
+    console.log(`[EXTERNO][INTERPRETADO]\n${maskSensitiveText(JSON.stringify(parsed, null, 2))}`)
+    console.log('[EXTERNO] ----------------------------------------------------------------\n')
+}
+
+function logExternalError(message: string): void {
+    if (!externalLoggingEnabled()) return
+    console.error(`[EXTERNO][ERROR] ${message}`)
+    console.log('[EXTERNO] ----------------------------------------------------------------\n')
+}
+
 export async function callExternalService(
     host: string,
     script: string,
@@ -91,6 +145,8 @@ export async function callExternalService(
 
         const controller = new AbortController()
         const timer = setTimeout(() => controller.abort(), timeout)
+        const startedAt = Date.now()
+        logRequest(url, format, index + 1, scripts.length)
 
         try {
             const response = await fetch(url, {
@@ -109,15 +165,21 @@ export async function callExternalService(
             })
             const body = await response.text()
             const contentType = response.headers.get('content-type')
+            logResponse(response, body, Date.now() - startedAt)
 
             try {
                 // Some peer services return useful APROBADO/DENEGADO or error data with HTTP >= 400.
                 // If the payload is valid JSON/XML, let the contract layer decide what it means.
-                return parseExternalBody(body, format, contentType)
+                const parsed = parseExternalBody(body, format, contentType)
+                logParsed(parsed)
+                return parsed
             } catch {
                 const pathLooksMissing = [404, 405, 406].includes(response.status) || looksLikeHtml(body, contentType)
                 const canTryPhp = index + 1 < scripts.length && pathLooksMissing
                 if (canTryPhp) {
+                    if (externalLoggingEnabled()) {
+                        console.warn(`[EXTERNO][FALLBACK] ${candidate} no produjo datos válidos; probando ${scripts[index + 1]}`)
+                    }
                     lastError = new HttpError(502, `El servicio externo respondió con código ${response.status}; probando la ruta .php`)
                     continue
                 }
@@ -132,16 +194,23 @@ export async function callExternalService(
                 lastError = error
                 // Only fall through to a .php candidate for path/content negotiation failures.
                 if (index + 1 < scripts.length && /código (404|405|406)|ruta \.php/i.test(error.message)) continue
+                logExternalError(error.message)
                 throw error
             }
             if (error instanceof Error && error.name === 'AbortError') {
-                throw new HttpError(504, 'El servicio externo tardó demasiado en responder')
+                const timeoutError = new HttpError(504, `El servicio externo tardó demasiado en responder (${timeout} ms)`)
+                logExternalError(timeoutError.message)
+                throw timeoutError
             }
-            throw new HttpError(502, 'No fue posible comunicarse con el servicio externo')
+            const connectionError = new HttpError(502, 'No fue posible comunicarse con el servicio externo')
+            logExternalError(`${connectionError.message}${error instanceof Error ? `: ${error.message}` : ''}`)
+            throw connectionError
         } finally {
             clearTimeout(timer)
         }
     }
 
-    throw lastError ?? new HttpError(502, 'No fue posible obtener una respuesta válida del servicio externo')
+    const finalError = lastError ?? new HttpError(502, 'No fue posible obtener una respuesta válida del servicio externo')
+    logExternalError(finalError.message)
+    throw finalError
 }

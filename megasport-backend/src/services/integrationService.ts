@@ -11,6 +11,16 @@ export function serviceMode(): 'mock'|'live' {
     return mode
 }
 
+function integrationLoggingEnabled(): boolean {
+    return (process.env.EXTERNAL_SERVICE_LOGGING ?? 'true').trim().toLowerCase() !== 'false'
+}
+
+function logIntegration(kind: string, provider: string, payload: unknown): void {
+    if (!integrationLoggingEnabled()) return
+    console.log(`[INTEGRACION][${kind}] ${provider}`)
+    console.log(JSON.stringify(payload, null, 2))
+}
+
 type CourierRow = {
     identificador: string
     nombre: string
@@ -131,13 +141,15 @@ export async function quoteAllCouriers(
                         )
 
                     const quote = parseCourierQuote(response)
-                    return {
+                    const resultQuote = {
                         courierId: courier.identificador,
                         courierName: courier.nombre,
                         ...quote,
                         estadoConsulta: quote.cobertura ? 'DISPONIBLE' : 'SIN_COBERTURA',
                         mensaje: quote.cobertura ? 'Cobertura disponible' : 'Destino sin cobertura',
                     }
+                    logIntegration('COURIER-CONSULTA', courier.identificador, resultQuote)
+                    return resultQuote
 
                 } catch (error) {
 
@@ -195,11 +207,13 @@ export async function requestShipment(
     const shipment = parseShipmentResponse(response, data.orden)
     const parsedStatus = shippingStatusValue(shipment.status)
     if (parsedStatus === -1) throw new HttpError(502, 'El courier reportó el envío como cancelado')
-    return {
+    const resultShipment = {
         courierId: courier.identificador,
         numeroEnvio: shipment.numeroEnvio,
         estadoEnvio: parsedStatus && parsedStatus >= 1 ? parsedStatus : 1,
     }
+    logIntegration('COURIER-ENVIO', courier.identificador, { ...resultShipment, statusRecibido: shipment.status })
+    return resultShipment
 }
 
 export async function requestShipmentStatus(
@@ -227,7 +241,9 @@ export async function requestShipmentStatus(
     if (status === null) {
         throw new HttpError(502, 'El courier devolvió un estado de envío inválido')
     }
-    return { courierId: courier.identificador, numeroEnvio: orden, estadoEnvio: status }
+    const resultStatus = { courierId: courier.identificador, numeroEnvio: orden, estadoEnvio: status }
+    logIntegration('COURIER-STATUS', courier.identificador, { ...resultStatus, statusRecibido: rawStatus })
+    return resultStatus
 }
 
 export const CARD_PREFIX: Record<string, string> = {
@@ -303,7 +319,7 @@ export async function authorizeCard(data: {
     if ((!approved && !denied) || (approved && (!authorization || authorization === '0' || authorization.length > 100)))
         throw new HttpError(502, 'Respuesta de pago ambigua; requiere revisión con el emisor')
 
-    return {
+    const paymentResult = {
         issuerId: issuer.identificador,
         issuerName: externalField(response, 'emisor', 'issuer') || issuer.nombre,
         status: approved ? 'APROBADO' as const : 'DENEGADO' as const,
@@ -311,4 +327,6 @@ export async function authorizeCard(data: {
         message: externalField(response, 'mensaje', 'motivo', 'descripcion', 'razon')
             ?? (approved ? 'La transacción fue aprobada' : 'La transacción fue denegada por el emisor'),
     }
+    logIntegration('TARJETA-AUTORIZACION', issuer.identificador, paymentResult)
+    return paymentResult
 }
