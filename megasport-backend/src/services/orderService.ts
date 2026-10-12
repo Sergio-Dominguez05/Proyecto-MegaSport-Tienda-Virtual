@@ -5,6 +5,10 @@ import { HttpError } from '../utils/httpError.js'
 import { cents, stringField } from '../utils/validation.js'
 import { authorizeCard, CARD_PREFIX, quoteAllCouriers, requestShipment, requestShipmentStatus, serviceMode } from './integrationService.js'
 
+function unsafeIntegrationRetryEnabled(): boolean {
+    return (process.env.ALLOW_UNSAFE_INTEGRATION_RETRY ?? 'false').toLowerCase() === 'true'
+}
+
 export type OrderRow = {
     id:string; id_usuario:number; id_carrito:number|null; id_courier:string; id_tarjeta:string|null
     estado_de_pagado:string; envio_proceso:string; modo:string; stock_reservado:boolean
@@ -132,14 +136,15 @@ export async function payOrder(userId:number,id:string,input:Record<string,unkno
     const order=await transaction(async client=>{
         await lockUser(client,userId)
         const order=await owned(client,id,userId)
-        if(order.estado_de_pagado!=='PENDIENTE') return null
+        const retryingReview = order.estado_de_pagado === 'REVISION' && unsafeIntegrationRetryEnabled()
+        if(order.estado_de_pagado!=='PENDIENTE' && !retryingReview) return null
         if(order.modo!==serviceMode()) throw new HttpError(409,'El modo del servidor cambió. Cancela esta orden y crea otra.')
         if(order.vence_en && new Date(order.vence_en)<new Date()) {
             await releaseStock(client,order)
             await client.query("UPDATE orden SET estado_de_pagado='CANCELADO' WHERE id=$1",[id])
             return null
         }
-        await client.query("UPDATE orden SET estado_de_pagado='PROCESANDO',id_tarjeta=$2 WHERE id=$1",[id,issuerId])
+        await client.query("UPDATE orden SET estado_de_pagado='PROCESANDO',id_tarjeta=$2,nota_revision=NULL WHERE id=$1",[id,issuerId])
         return order
     })
     if(!order) return orderDetail(id,userId)
@@ -153,8 +158,12 @@ export async function payOrder(userId:number,id:string,input:Record<string,unkno
         })
         await settlePayment(userId,id,result.status,result.authorizationNumber)
     } catch {
-        // Nunca reintentar a ciegas: la petición pudo haber sido cobrada aunque se perdiera la respuesta.
-        await pool.query("UPDATE orden SET estado_de_pagado='REVISION',nota_revision='Verificar resultado con el emisor antes de continuar; no repetir cobro.' WHERE id=$1 AND estado_de_pagado='PROCESANDO'",[id])
+        // En producción no debe repetirse un cobro ambiguo. Para las pruebas de interoperabilidad
+        // puede habilitarse ALLOW_UNSAFE_INTEGRATION_RETRY=true para mostrar un reintento manual.
+        const note = unsafeIntegrationRetryEnabled()
+            ? 'No se obtuvo una autorización válida. Modo de pruebas: puedes reintentar manualmente la autorización.'
+            : 'Verificar resultado con el emisor antes de continuar; no repetir cobro.'
+        await pool.query("UPDATE orden SET estado_de_pagado='REVISION',nota_revision=$2 WHERE id=$1 AND estado_de_pagado='PROCESANDO'",[id,note])
     }
     return orderDetail(id,userId)
 }
@@ -178,9 +187,10 @@ export async function sendOrder(userId:number,id:string) {
     const order=await transaction(async client=>{
         const order=await owned(client,id,userId)
         if(order.estado_de_pagado!=='APROBADO') throw new HttpError(409,'La orden no está pagada')
-        if(order.envio_proceso!=='PENDIENTE') return null
+        const retryingReview = order.envio_proceso === 'REVISION' && unsafeIntegrationRetryEnabled()
+        if(order.envio_proceso!=='PENDIENTE' && !retryingReview) return null
         if(order.modo!==serviceMode()) throw new HttpError(409,'El modo del servidor no coincide con la orden')
-        await client.query("UPDATE orden SET envio_proceso='PROCESANDO' WHERE id=$1",[id])
+        await client.query("UPDATE orden SET envio_proceso='PROCESANDO',nota_revision=NULL WHERE id=$1",[id])
         return order
     })
     if(!order) return orderDetail(id,userId)
@@ -198,7 +208,10 @@ export async function sendOrder(userId:number,id:string) {
         await pool.query("UPDATE orden SET envio_proceso='CREADO',num_envio=$2,estado_envio=$3,nota_revision=NULL WHERE id=$1",
             [id,shipment.numeroEnvio,shipment.estadoEnvio])
     } catch {
-        await pool.query("UPDATE orden SET envio_proceso='REVISION',nota_revision='Consultar con courier si ya recibió la orden. No reenviar sin verificar.' WHERE id=$1",[id])
+        const note = unsafeIntegrationRetryEnabled()
+            ? 'No se recibió una confirmación válida del courier. Modo de pruebas: puedes reintentar manualmente la solicitud de envío.'
+            : 'Consultar con courier si ya recibió la orden. No reenviar sin verificar.'
+        await pool.query("UPDATE orden SET envio_proceso='REVISION',nota_revision=$2 WHERE id=$1",[id,note])
     }
     return orderDetail(id,userId)
 }

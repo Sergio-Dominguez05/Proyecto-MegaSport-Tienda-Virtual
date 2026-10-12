@@ -1,4 +1,5 @@
-import { courierPayload, parseCourierQuote } from './courierContract.js'
+import { parseCourierQuote, parseShipmentResponse } from './courierContract.js'
+import { externalField, normalizeExternalText } from './externalContract.js'
 import { pool } from '../config/database.js'
 import { HttpError } from '../utils/httpError.js'
 import { callExternalService, type ExternalFormat } from './externalHttpService.js'
@@ -32,45 +33,28 @@ function textValue(value: unknown): string {
     return value === undefined || value === null ? '' : String(value)
 }
 
-function shippingStatusValue(
-    value: unknown
-): number | null {
-
-    const numeric = Number(value)
-
-    if (
-        Number.isInteger(numeric) &&
-        numeric >= 1 &&
-        numeric <= 5
-    ) {
-        return numeric
+function shippingStatusValue(value: unknown): number | null {
+    const raw = textValue(value).trim()
+    const directNumber = /^(\d)$/.exec(raw)?.[1]
+    if (directNumber) {
+        const numeric = Number(directNumber)
+        return numeric >= 1 && numeric <= 5 ? numeric : null
     }
 
-    const normalized = textValue(value)
-        .trim()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toUpperCase()
+    const normalized = normalizeExternalText(raw)
+        .replace(/^\d+[.\s-]*/, '')
+        .replace(/[\s-]+/g, '_')
 
-    const statuses: Record<string, number> = {
-        'ORDEN NUEVA': 1,
-        'SURTIENDOSE': 2,
-        'EMPACANDOSE': 3,
-        'EN RUTA': 4,
-        'ENTREGADA': 5,
-    }
-
-    return statuses[normalized] ?? null
+    if (['ORDEN_NUEVA', 'NUEVA', 'NUEVO', 'SOLICITADO', 'RECIBIDO', 'PENDIENTE', 'REGISTRADO'].includes(normalized)) return 1
+    if (['SURTIENDOSE', 'SURTIENDO', 'EN_SURTIDO', 'PROCESANDO'].includes(normalized)) return 2
+    if (['EMPACANDOSE', 'EMPACANDO', 'EMPAQUE', 'EN_EMPAQUE'].includes(normalized)) return 3
+    if (['EN_RUTA', 'RUTA', 'EN_TRANSITO', 'TRANSITO', 'EN_CAMINO', 'IN_TRANSIT'].includes(normalized)) return 4
+    if (['ENTREGADA', 'ENTREGADO', 'DELIVERED'].includes(normalized)) return 5
+    if (['CANCELADO', 'CANCELADA', 'CANCELLED', 'CANCELED', 'DEVUELTO'].includes(normalized)) return -1
+    return null
 }
 
-function booleanValue(value: unknown): boolean {
-    return value === true || ['true', '1', 'si', 'sí'].includes(textValue(value).toLowerCase())
-}
 
-function numberValue(value: unknown): number | null {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
-}
 
 async function activeCourier(id: string): Promise<CourierRow> {
     const result = await pool.query<CourierRow>(
@@ -140,7 +124,7 @@ export async function quoteAllCouriers(
                             courier.host,
                             courier.script_de_consulta,
                             {
-                                destino,
+                                destino: destino.toUpperCase(),
                                 formato,
                             },
                             formato,
@@ -195,35 +179,26 @@ export async function requestShipment(
     const courier = await activeCourier(courierId)
     const formato = data.formato ?? courier.formato
     if(serviceMode()==='mock') return {courierId, numeroEnvio:`SIM-ENV-${data.orden}`,estadoEnvio:1}
-    const response = courierPayload(await callExternalService(
+    const response = await callExternalService(
         courier.host,
         courier.script_de_envio,
         {
             orden: data.orden,
             destinatario: data.destinatario,
-            destino: data.destino,
+            destino: data.destino.toUpperCase(),
             direccion: data.direccion,
             tienda: process.env.TIENDA_ID ?? 'MEGASPORT',
             formato,
         },
         formato,
-    ), 'envio')
-    if (['RECHAZADO', 'DENEGADO', 'ERROR'].includes(textValue(response.status).trim().toUpperCase()))
-        throw new HttpError(502, 'El courier rechazó la solicitud de envío; verifiquen el pedido con el proveedor')
-    const shippingNumber = textValue(
-        response.numero_envio
-        ?? response.numeroEnvio
-        ?? response.numero
-        ?? response.guia
     )
-    if (!shippingNumber) {
-        throw new HttpError(502, 'El courier no devolvió un número de envío')
-    }
-    const status = Number(response.estado_envio ?? response.estadoEnvio ?? response.status ?? 1)
+    const shipment = parseShipmentResponse(response, data.orden)
+    const parsedStatus = shippingStatusValue(shipment.status)
+    if (parsedStatus === -1) throw new HttpError(502, 'El courier reportó el envío como cancelado')
     return {
         courierId: courier.identificador,
-        numeroEnvio: shippingNumber,
-        estadoEnvio: status >= 1 && status <= 5 ? status : 1,
+        numeroEnvio: shipment.numeroEnvio,
+        estadoEnvio: parsedStatus && parsedStatus >= 1 ? parsedStatus : 1,
     }
 }
 
@@ -235,7 +210,7 @@ export async function requestShipmentStatus(
     const courier = await activeCourier(courierId)
     const formato = formatoOverride ?? courier.formato
     if(serviceMode()==='mock') return {courierId,numeroEnvio:`SIM-ENV-${orden}`,estadoEnvio:1}
-    const response = courierPayload(await callExternalService(
+    const response = await callExternalService(
         courier.host,
         courier.script_de_status,
         {
@@ -244,20 +219,14 @@ export async function requestShipmentStatus(
             formato,
         },
         formato,
-    ), 'orden')
-    const status = shippingStatusValue(
-            response.estado_envio
-            ?? response.estadoEnvio
-            ?? response.status
-            ?? response.estado
-        )
+    )
+    const rawStatus = externalField(response, 'status', 'estado', 'estatus')
+    const status = shippingStatusValue(rawStatus)
 
-        if (status === null) {
-            throw new HttpError(
-                502,
-                'El courier devolvió un estado de envío inválido'
-            )
-        }
+    if (status === -1) throw new HttpError(502, 'El courier reportó el envío como cancelado')
+    if (status === null) {
+        throw new HttpError(502, 'El courier devolvió un estado de envío inválido')
+    }
     return { courierId: courier.identificador, numeroEnvio: orden, estadoEnvio: status }
 }
 
@@ -314,18 +283,32 @@ export async function authorizeCard(data: {
         },
         formato,
     )
-    const rawStatus = textValue(response.status ?? response.estado).toUpperCase()
-    const approved = ['APROBADO', 'APPROVED', '1', 'TRUE'].includes(rawStatus)
-    const authorization = textValue(response.numero ?? response.numero_autorizacion ?? response.authorizationNumber)
-    const denied = ['DENEGADO','RECHAZADO','DENIED','0','FALSE'].includes(rawStatus)
-    if ((!approved && !denied) || (approved && (!authorization || authorization==='0' || authorization.length>100)))
+    const rawStatus = normalizeExternalText(
+        externalField(response, 'status', 'estado', 'estatus', 'resultado') ?? ''
+    )
+    const approved = [
+        'APROBADO', 'APROBADA', 'AUTORIZADO', 'AUTORIZADA',
+        'APPROVED', 'OK', '1', 'TRUE',
+    ].includes(rawStatus)
+    const denied = [
+        'DENEGADO', 'DENEGADA', 'RECHAZADO', 'RECHAZADA',
+        'DENIED', 'REJECTED', '0', 'FALSE',
+    ].includes(rawStatus)
+    const authorization = externalField(
+        response,
+        'numero', 'num_autorizacion', 'autorizacion',
+        'numero_autorizacion', 'codigo', 'authorizationnumber',
+    ) ?? ''
+
+    if ((!approved && !denied) || (approved && (!authorization || authorization === '0' || authorization.length > 100)))
         throw new HttpError(502, 'Respuesta de pago ambigua; requiere revisión con el emisor')
 
     return {
         issuerId: issuer.identificador,
-        issuerName: textValue(response.emisor) || issuer.nombre,
+        issuerName: externalField(response, 'emisor', 'issuer') || issuer.nombre,
         status: approved ? 'APROBADO' as const : 'DENEGADO' as const,
-        authorizationNumber: approved && authorization && authorization !== '0' ? authorization : null,
-        message: approved ? 'La transacción fue aprobada' : 'La transacción fue denegada por el emisor',
+        authorizationNumber: approved ? authorization : null,
+        message: externalField(response, 'mensaje', 'motivo', 'descripcion', 'razon')
+            ?? (approved ? 'La transacción fue aprobada' : 'La transacción fue denegada por el emisor'),
     }
 }
